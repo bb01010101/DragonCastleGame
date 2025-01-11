@@ -29,24 +29,28 @@ export default function GameCanvas() {
 
   return (
     <div className="w-full h-screen relative bg-green-600">
-      <Canvas shadows>
+      <Canvas 
+        shadows 
+        camera={{ 
+          position: [0, 20, 20],
+          near: 0.1,
+          far: 1000,
+          zoom: 40
+        }}
+      >
         <OrthographicCamera 
           makeDefault 
-          position={[0, 15, 10]} 
-          zoom={30}
-          near={0.1}
-          far={1000}
+          position={[0, 20, 20]}
+          zoom={40}
         />
-        <ambientLight intensity={0.8} />
+        <color attach="background" args={['#4CAF50']} />
+        <fogExp2 attach="fog" args={['#4CAF50', 0.01]} />
+        <ambientLight intensity={1.0} />
         <directionalLight 
-          position={[50, 50, 25]} 
-          intensity={1.0} 
+          position={[10, 20, 10]} 
+          intensity={1.5} 
           castShadow
-          shadow-mapSize={[4096, 4096]}
-          shadow-camera-left={-50}
-          shadow-camera-right={50}
-          shadow-camera-top={50}
-          shadow-camera-bottom={-50}
+          shadow-mapSize={[2048, 2048]}
         />
         <Suspense fallback={null}>
           <GameMap />

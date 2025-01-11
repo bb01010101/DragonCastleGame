@@ -18,8 +18,8 @@ export const BIOMES = {
 }
 
 export function GameMap() {
-  const mapSize = 200
-  const scale = 30
+  const mapSize = 100
+  const scale = 20
 
   const mapData = useMemo(() => {
     const data = new Uint8Array(mapSize * mapSize * 4)
@@ -87,7 +87,11 @@ export function GameMap() {
       position={[0, 0, 0]}
       receiveShadow
     >
-      <meshStandardMaterial map={texture} />
+      <meshStandardMaterial 
+        map={texture} 
+        roughness={1}
+        metalness={0}
+      />
     </Plane>
   )
 }

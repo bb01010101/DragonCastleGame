@@ -12,13 +12,14 @@ interface PlayerProps {
 export function Player({ onCollectResource }: PlayerProps) {
   const playerRef = useRef<THREE.Mesh>(null)
   const { camera } = useThree()
-  const speed = 0.5
-  const targetPosition = useRef(new THREE.Vector3(0, 0.5, 0))
+  const speed = 0.3 // Reduced speed for better control
+  const targetPosition = useRef(new THREE.Vector3(0, 1, 0))
   const keysPressed = useRef<{ [key: string]: boolean }>({})
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       keysPressed.current[e.key.toLowerCase()] = true
+      e.preventDefault() // Prevent page scrolling
     }
     
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -50,32 +51,38 @@ export function Player({ onCollectResource }: PlayerProps) {
       
       // Update target position for smooth camera following
       targetPosition.current.copy(playerRef.current.position)
+      
+      // Update camera position to follow player
+      camera.position.x = targetPosition.current.x
+      camera.position.z = targetPosition.current.z + 20
     }
-
-    // Smooth camera following
-    camera.position.x += (targetPosition.current.x - camera.position.x) * 0.1
-    camera.position.z += (targetPosition.current.z + 10 - camera.position.z) * 0.1
   })
 
   return (
-    <group>
+    <group position={[0, 1, 0]}>
       {/* Player shadow */}
       <mesh
-        position={[0, 0.01, 0]}
+        position={[0, -0.99, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
         receiveShadow
       >
-        <circleGeometry args={[0.3, 32]} />
+        <circleGeometry args={[0.5, 32]} />
         <meshBasicMaterial color="black" transparent opacity={0.3} />
       </mesh>
 
       {/* Player body */}
-      <Sphere ref={playerRef} args={[0.3, 32, 32]} position={[0, 0.5, 0]} castShadow>
-        <meshStandardMaterial color="#3498db" />
+      <Sphere ref={playerRef} args={[0.5, 32, 32]} castShadow>
+        <meshStandardMaterial 
+          color="#3498db"
+          emissive="#2980b9"
+          emissiveIntensity={0.2}
+          roughness={0.3}
+          metalness={0.7}
+        />
       </Sphere>
 
       {/* Player name */}
-      <Html position={[0, 1.2, 0]}>
+      <Html position={[0, 1.5, 0]} center>
         <div className="bg-black/50 text-white px-2 py-1 rounded text-sm whitespace-nowrap">
           Player 1
         </div>
