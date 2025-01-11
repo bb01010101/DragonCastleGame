@@ -1,103 +1,136 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { Sphere, Html } from '@react-three/drei'
-import * as THREE from 'three'
+import { Vector3, Raycaster, Mesh } from 'three'
+import { Text } from '@react-three/drei'
+import { useSoundEffects } from '@/hooks/use-sound-effects'
 
 interface PlayerProps {
   onCollectResource: (type: string, amount: number) => void
+  selectedTool: 'build' | 'gather'
+  selectedBlockType: 'wood-block' | 'stone-block' | null
+  setSelectedBlockType: (type: 'wood-block' | 'stone-block' | null) => void
 }
 
-export function Player({ onCollectResource }: PlayerProps) {
-  const playerRef = useRef<THREE.Mesh>(null)
-  const { camera, scene } = useThree()
-  const [isInitialized, setIsInitialized] = useState(false)
-  const speed = 0.3
-  const targetPosition = useRef(new THREE.Vector3(0, 1, 0))
-  const keysPressed = useRef<{ [key: string]: boolean }>({})
-
-  // Initialize player position
-  useEffect(() => {
-    if (playerRef.current && !isInitialized) {
-      playerRef.current.position.set(0, 1, 0)
-      camera.position.set(0, 20, 20)
-      camera.lookAt(0, 0, 0)
-      setIsInitialized(true)
-    }
-  }, [camera, isInitialized])
+export function Player({ 
+  onCollectResource, 
+  selectedTool,
+  selectedBlockType,
+  setSelectedBlockType 
+}: PlayerProps) {
+  const meshRef = useRef<Mesh>(null)
+  const [position, setPosition] = useState<[number, number, number]>([0, 0.5, 0])
+  const [username] = useState('Player1') // In a real app, this would come from auth
+  const { camera } = useThree()
+  const raycaster = useRef(new Raycaster())
+  const { playChop } = useSoundEffects()
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      keysPressed.current[e.key.toLowerCase()] = true
-      e.preventDefault()
+      const speed = 0.5
+      const [x, y, z] = position
+
+      switch (e.key.toLowerCase()) {
+        case 'w':
+        case 'arrowup':
+          setPosition([x, y, z - speed])
+          break
+        case 's':
+        case 'arrowdown':
+          setPosition([x, y, z + speed])
+          break
+        case 'a':
+        case 'arrowleft':
+          setPosition([x - speed, y, z])
+          break
+        case 'd':
+        case 'arrowright':
+          setPosition([x + speed, y, z])
+          break
+      }
     }
-    
-    const handleKeyUp = (e: KeyboardEvent) => {
-      keysPressed.current[e.key.toLowerCase()] = false
-    }
-    
+
     window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('keyup', handleKeyUp)
-    
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      window.removeEventListener('keyup', handleKeyUp)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [position])
+
+  useEffect(() => {
+    if (meshRef.current) {
+      camera.position.x = position[0]
+      camera.position.z = position[2] + 20
+      camera.lookAt(new Vector3(position[0], 0, position[2]))
     }
-  }, [])
+  }, [camera, position])
 
-  useFrame(() => {
-    if (!playerRef.current || !isInitialized) return
-
-    const movement = new THREE.Vector3(0, 0, 0)
+  const handleClick = (event: any) => {
+    event.stopPropagation()
     
-    if (keysPressed.current['w'] || keysPressed.current['arrowup']) movement.z -= 1
-    if (keysPressed.current['s'] || keysPressed.current['arrowdown']) movement.z += 1
-    if (keysPressed.current['a'] || keysPressed.current['arrowleft']) movement.x -= 1
-    if (keysPressed.current['d'] || keysPressed.current['arrowright']) movement.x += 1
+    if (!meshRef.current) return
 
-    if (movement.length() > 0) {
-      movement.normalize().multiplyScalar(speed)
-      playerRef.current.position.add(movement)
-      
-      // Update target position for smooth camera following
-      targetPosition.current.copy(playerRef.current.position)
-      
-      // Update camera position to follow player
-      camera.position.x = targetPosition.current.x
-      camera.position.z = targetPosition.current.z + 20
+    raycaster.current.setFromCamera(event.point, camera)
+    const intersects = raycaster.current.intersectObjects(meshRef.current.parent?.children || [], true)
+
+    if (intersects.length > 0) {
+      const clickedObject = intersects[0].object
+
+      if (selectedTool === 'gather') {
+        const userData = clickedObject.userData
+        if (userData.type === 'environment-object') {
+          playChop()
+          if (userData.damage) {
+            userData.damage(25)
+          }
+        }
+      } else if (selectedTool === 'build' && selectedBlockType) {
+        const point = intersects[0].point
+        point.y = 0.5 // Place blocks at ground level
+        
+        // Round to grid
+        point.x = Math.round(point.x)
+        point.z = Math.round(point.z)
+        
+        // Create new block at position
+        const blockPosition: [number, number, number] = [point.x, point.y, point.z]
+        meshRef.current.parent?.add(
+          <mesh position={blockPosition}>
+            {selectedBlockType === 'wood-block' ? (
+              <>
+                <boxGeometry args={[1, 1, 1]} />
+                <meshStandardMaterial color="#8B4513" />
+              </>
+            ) : (
+              <>
+                <sphereGeometry args={[0.5, 32, 32]} />
+                <meshStandardMaterial color="#808080" />
+              </>
+            )}
+          </mesh>
+        )
+        setSelectedBlockType(null)
+      }
     }
-  })
+  }
 
   return (
-    <group position={[0, 1, 0]}>
-      {/* Player shadow */}
+    <group>
       <mesh
-        position={[0, -0.99, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        receiveShadow
+        ref={meshRef}
+        position={position}
+        onClick={handleClick}
       >
-        <circleGeometry args={[0.5, 32]} />
-        <meshBasicMaterial color="black" transparent opacity={0.3} />
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color="#FF0000" />
       </mesh>
-
-      {/* Player body */}
-      <Sphere ref={playerRef} args={[0.5, 32, 32]} castShadow>
-        <meshStandardMaterial 
-          color="#3498db"
-          emissive="#2980b9"
-          emissiveIntensity={0.2}
-          roughness={0.3}
-          metalness={0.7}
-        />
-      </Sphere>
-
-      {/* Player name */}
-      <Html position={[0, 1.5, 0]} center>
-        <div className="bg-black/50 text-white px-2 py-1 rounded text-sm whitespace-nowrap">
-          Player 1
-        </div>
-      </Html>
+      <Text
+        position={[position[0], position[1] + 1.5, position[2]]}
+        fontSize={0.5}
+        color="white"
+        anchorX="center"
+        anchorY="middle"
+      >
+        {username}
+      </Text>
     </group>
   )
 }

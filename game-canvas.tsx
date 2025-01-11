@@ -26,15 +26,20 @@ const CanvasWrapper = dynamic(() => Promise.resolve(Canvas), {
 })
 
 export default function GameCanvas() {
-  const [selectedTool, setSelectedTool] = useState<'build' | 'attack' | 'gather'>('gather')
+  const [selectedTool, setSelectedTool] = useState<'build' | 'gather'>('gather')
+  const [selectedBlockType, setSelectedBlockType] = useState<'wood-block' | 'stone-block' | null>(null)
   const { resources, addResources, spendResources } = useGameState()
   
   const handleCollectResource = useCallback((type: string, amount: number) => {
     addResources({ [type]: amount })
   }, [addResources])
 
+  const handleBlockSelect = useCallback((type: 'wood-block' | 'stone-block') => {
+    setSelectedBlockType(type)
+  }, [])
+
   return (
-    <div className="w-full h-screen relative bg-green-600">
+    <div className="w-full h-screen relative">
       <CanvasWrapper
         style={{ background: '#4CAF50' }}
         camera={{
@@ -60,7 +65,12 @@ export default function GameCanvas() {
         />
         <Suspense fallback={null}>
           <GameMap />
-          <Player onCollectResource={handleCollectResource} />
+          <Player 
+            onCollectResource={handleCollectResource}
+            selectedTool={selectedTool}
+            selectedBlockType={selectedBlockType}
+            setSelectedBlockType={setSelectedBlockType}
+          />
         </Suspense>
         <Stats />
       </CanvasWrapper>
@@ -73,14 +83,16 @@ export default function GameCanvas() {
 
         <Card className="p-4 pointer-events-auto bg-black/50">
           <div className="flex gap-2">
-            <Select value={selectedTool} onValueChange={(value: 'build' | 'attack' | 'gather') => setSelectedTool(value)}>
+            <Select value={selectedTool} onValueChange={(value: 'build' | 'gather') => {
+              setSelectedTool(value)
+              if (value !== 'build') setSelectedBlockType(null)
+            }}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Select tool" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="gather">Gather Resources</SelectItem>
                 <SelectItem value="build">Build</SelectItem>
-                <SelectItem value="attack">Attack</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="secondary">Menu</Button>
@@ -90,7 +102,11 @@ export default function GameCanvas() {
 
       {selectedTool === 'build' && (
         <div className="absolute bottom-4 left-4 right-4">
-          <BuildMenu resources={resources} onBuild={spendResources} />
+          <BuildMenu 
+            resources={resources} 
+            onBuild={spendResources}
+            onBlockSelect={handleBlockSelect}
+          />
         </div>
       )}
 
@@ -100,7 +116,9 @@ export default function GameCanvas() {
 
       {/* Movement Controls Help */}
       <div className="absolute bottom-4 left-4 text-sm text-white bg-black/50 p-2 rounded">
-        WASD or Arrow Keys to move, Click to gather resources
+        WASD or Arrow Keys to move
+        <br />
+        Left Click to {selectedTool === 'gather' ? 'gather resources' : 'place blocks'}
       </div>
     </div>
   )
