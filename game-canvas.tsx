@@ -32,17 +32,21 @@ export default function GameCanvas() {
       <Canvas shadows>
         <OrthographicCamera 
           makeDefault 
-          position={[0, 20, 20]} 
-          zoom={20} 
+          position={[0, 15, 10]} 
+          zoom={30}
           near={0.1}
           far={1000}
         />
-        <ambientLight intensity={1.0} />
+        <ambientLight intensity={0.8} />
         <directionalLight 
-          position={[10, 20, 10]} 
-          intensity={1.5} 
-          castShadow 
-          shadow-mapSize={[2048, 2048]}
+          position={[50, 50, 25]} 
+          intensity={1.0} 
+          castShadow
+          shadow-mapSize={[4096, 4096]}
+          shadow-camera-left={-50}
+          shadow-camera-right={50}
+          shadow-camera-top={50}
+          shadow-camera-bottom={-50}
         />
         <Suspense fallback={null}>
           <GameMap />
