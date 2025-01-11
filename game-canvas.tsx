@@ -28,11 +28,22 @@ export default function GameCanvas() {
   }, [addResources])
 
   return (
-    <div className="w-full h-screen relative">
-      <Canvas>
-        <OrthographicCamera makeDefault position={[0, 50, 0]} zoom={10} />
-        <ambientLight intensity={0.8} />
-        <directionalLight position={[10, 10, 5]} intensity={1} />
+    <div className="w-full h-screen relative bg-green-600">
+      <Canvas shadows>
+        <OrthographicCamera 
+          makeDefault 
+          position={[0, 20, 20]} 
+          zoom={20} 
+          near={0.1}
+          far={1000}
+        />
+        <ambientLight intensity={1.0} />
+        <directionalLight 
+          position={[10, 20, 10]} 
+          intensity={1.5} 
+          castShadow 
+          shadow-mapSize={[2048, 2048]}
+        />
         <Suspense fallback={null}>
           <GameMap />
           <Player onCollectResource={handleCollectResource} />
@@ -42,11 +53,11 @@ export default function GameCanvas() {
       
       {/* UI Overlay */}
       <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
-        <Card className="p-4 pointer-events-auto">
+        <Card className="p-4 pointer-events-auto bg-black/50 text-white">
           <ResourcePanel resources={resources} />
         </Card>
 
-        <Card className="p-4 pointer-events-auto">
+        <Card className="p-4 pointer-events-auto bg-black/50">
           <div className="flex gap-2">
             <Select value={selectedTool} onValueChange={(value: 'build' | 'attack' | 'gather') => setSelectedTool(value)}>
               <SelectTrigger className="w-[180px]">
@@ -69,7 +80,7 @@ export default function GameCanvas() {
         </div>
       )}
 
-      <div className="absolute bottom-4 right-4 w-48 h-48">
+      <div className="absolute bottom-4 right-4 w-48 h-48 bg-black/20 rounded">
         <MiniMap />
       </div>
 
