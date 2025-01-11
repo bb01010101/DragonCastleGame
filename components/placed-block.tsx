@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Mesh } from 'three'
-import { useSoundEffects } from '@/hooks/use-sound-effects'
 
 interface PlacedBlockProps {
   position: [number, number, number]
@@ -13,13 +12,11 @@ export function PlacedBlock({ position, type, onDestroy }: PlacedBlockProps) {
   const meshRef = useRef<Mesh>(null)
   const [health, setHealth] = useState(type === 'stone-block' ? 100 : 50)
   const [isBeingHit, setIsBeingHit] = useState(false)
-  const { playChop } = useSoundEffects()
 
   const handleHit = () => {
     if (health <= 0) return
     
     setIsBeingHit(true)
-    playChop()
     setHealth(prev => {
       const damage = type === 'stone-block' ? 10 : 25
       const newHealth = prev - damage

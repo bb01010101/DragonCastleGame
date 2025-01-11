@@ -4,7 +4,6 @@ import { useRef, useEffect, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Vector3, Raycaster, Mesh } from 'three'
 import { Text } from '@react-three/drei'
-import { useSoundEffects } from '@/hooks/use-sound-effects'
 
 interface PlayerProps {
   onCollectResource: (type: string, amount: number) => void
@@ -24,7 +23,6 @@ export function Player({
   const [username] = useState('Player1') // In a real app, this would come from auth
   const { camera } = useThree()
   const raycaster = useRef(new Raycaster())
-  const { playChop } = useSoundEffects()
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -77,7 +75,6 @@ export function Player({
       if (selectedTool === 'gather') {
         const userData = clickedObject.userData
         if (userData.type === 'environment-object') {
-          playChop()
           if (userData.damage) {
             userData.damage(25)
           }
