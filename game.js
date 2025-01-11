@@ -1,45 +1,37 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// Define map dimensions (larger than canvas)
 const MAP = {
     width: 2000,
-    height: 1500
+    height: 1500,
+    tileSize: 64
 };
 
-// Camera position
 const camera = {
     x: 0,
     y: 0
 };
 
 const player = {
-    x: canvas.width / 2,  // Keep player centered initially
+    x: canvas.width / 2,
     y: canvas.height / 2,
-    width: 50,
-    height: 50,
+    width: 40,
+    height: 40,
     speed: 5,
-    // Track actual position in the world
     worldX: MAP.width / 2,
-    worldY: MAP.height / 2
+    worldY: MAP.height / 2,
+    color: '#FF4444'  // Bright red
 };
 
-// Track which keys are currently pressed
 const keys = {
-    w: false,
-    s: false,
-    a: false,
-    d: false,
-    ArrowUp: false,
-    ArrowDown: false,
-    ArrowLeft: false,
-    ArrowRight: false
+    w: false, s: false, a: false, d: false,
+    ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false
 };
 
-// Event listeners for keydown and keyup
 window.addEventListener('keydown', (e) => {
     if (keys.hasOwnProperty(e.key)) {
         keys[e.key] = true;
+        e.preventDefault(); // Prevent page scrolling
     }
 });
 
@@ -52,27 +44,23 @@ window.addEventListener('keyup', (e) => {
 function updatePlayer() {
     let moved = false;
     
-    // Vertical movement
     if (keys.w || keys.ArrowUp) {
-        player.worldY = Math.max(0, player.worldY - player.speed);
+        player.worldY = Math.max(player.height/2, player.worldY - player.speed);
         moved = true;
     }
     if (keys.s || keys.ArrowDown) {
-        player.worldY = Math.min(MAP.height, player.worldY + player.speed);
+        player.worldY = Math.min(MAP.height - player.height/2, player.worldY + player.speed);
         moved = true;
     }
-    
-    // Horizontal movement
     if (keys.a || keys.ArrowLeft) {
-        player.worldX = Math.max(0, player.worldX - player.speed);
+        player.worldX = Math.max(player.width/2, player.worldX - player.speed);
         moved = true;
     }
     if (keys.d || keys.ArrowRight) {
-        player.worldX = Math.min(MAP.width, player.worldX + player.speed);
+        player.worldX = Math.min(MAP.width - player.width/2, player.worldX + player.speed);
         moved = true;
     }
 
-    // Update camera to center on player, but respect map boundaries
     if (moved) {
         camera.x = Math.max(0, Math.min(MAP.width - canvas.width, player.worldX - canvas.width / 2));
         camera.y = Math.max(0, Math.min(MAP.height - canvas.height, player.worldY - canvas.height / 2));
@@ -80,55 +68,88 @@ function updatePlayer() {
 }
 
 function drawMap() {
-    // Draw a grid pattern to make scrolling visible
-    ctx.strokeStyle = '#ddd';
+    // Fill background
+    ctx.fillStyle = '#2A2A2A';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw grid
+    ctx.strokeStyle = '#3A3A3A';
+    ctx.lineWidth = 2;
     ctx.beginPath();
     
     // Vertical lines
-    for (let x = 0; x < MAP.width; x += 100) {
+    for (let x = 0; x < MAP.width; x += MAP.tileSize) {
         let screenX = x - camera.x;
-        if (screenX >= 0 && screenX <= canvas.width) {
+        if (screenX >= -MAP.tileSize && screenX <= canvas.width + MAP.tileSize) {
             ctx.moveTo(screenX, 0);
             ctx.lineTo(screenX, canvas.height);
         }
     }
     
     // Horizontal lines
-    for (let y = 0; y < MAP.height; y += 100) {
+    for (let y = 0; y < MAP.height; y += MAP.tileSize) {
         let screenY = y - camera.y;
-        if (screenY >= 0 && screenY <= canvas.height) {
+        if (screenY >= -MAP.tileSize && screenY <= canvas.height + MAP.tileSize) {
             ctx.moveTo(0, screenY);
             ctx.lineTo(canvas.width, screenY);
         }
     }
     
     ctx.stroke();
+
+    // Draw some decorative elements
+    for (let x = 0; x < MAP.width; x += MAP.tileSize * 2) {
+        for (let y = 0; y < MAP.height; y += MAP.tileSize * 2) {
+            let screenX = x - camera.x;
+            let screenY = y - camera.y;
+            if (screenX >= -MAP.tileSize && screenX <= canvas.width + MAP.tileSize &&
+                screenY >= -MAP.tileSize && screenY <= canvas.height + MAP.tileSize) {
+                ctx.fillStyle = '#3A3A3A';
+                ctx.fillRect(screenX + MAP.tileSize/4, screenY + MAP.tileSize/4, 
+                           MAP.tileSize/2, MAP.tileSize/2);
+            }
+        }
+    }
 }
 
 function drawPlayer() {
-    // Draw player relative to camera position
     const screenX = player.worldX - camera.x;
     const screenY = player.worldY - camera.y;
     
-    ctx.fillStyle = 'blue';
+    // Draw player shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(screenX, screenY + player.height/2, player.width/2, player.height/4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw player body
+    ctx.fillStyle = player.color;
     ctx.fillRect(screenX - player.width/2, screenY - player.height/2, 
                  player.width, player.height);
+                 
+    // Add highlight
+    ctx.fillStyle = '#FF6666';
+    ctx.fillRect(screenX - player.width/2, screenY - player.height/2, 
+                 player.width/4, player.height/4);
+}
+
+function drawUI() {
+    // Draw position indicator
+    ctx.fillStyle = '#FFF';
+    ctx.font = '16px Arial';
+    ctx.fillText(`Position: (${Math.round(player.worldX)}, ${Math.round(player.worldY)})`, 10, 30);
 }
 
 function gameLoop() {
-    // Clear the canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Update game objects
     updatePlayer();
-    
-    // Draw game objects
     drawMap();
     drawPlayer();
+    drawUI();
     
-    // Continue the game loop
     requestAnimationFrame(gameLoop);
 }
 
-// Start the game loop
+// Start the game
 gameLoop(); 
