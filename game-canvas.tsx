@@ -12,12 +12,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import dynamic from 'next/dynamic'
 import { GameMap } from './components/game-map'
 import { ResourcePanel } from './components/resource-panel'
 import { BuildMenu } from './components/build-menu'
 import { MiniMap } from './components/mini-map'
 import { Player } from './components/player'
 import { useGameState } from './hooks/use-game-state'
+
+// Disable SSR for Canvas
+const CanvasWrapper = dynamic(() => Promise.resolve(Canvas), {
+  ssr: false
+})
 
 export default function GameCanvas() {
   const [selectedTool, setSelectedTool] = useState<'build' | 'attack' | 'gather'>('gather')
@@ -29,12 +35,13 @@ export default function GameCanvas() {
 
   return (
     <div className="w-full h-screen relative bg-green-600">
-      <Canvas 
-        shadows 
-        camera={{ 
+      <CanvasWrapper
+        style={{ background: '#4CAF50' }}
+        camera={{
           position: [0, 20, 20],
           near: 0.1,
           far: 1000,
+          up: [0, 1, 0],
           zoom: 40
         }}
       >
@@ -44,7 +51,6 @@ export default function GameCanvas() {
           zoom={40}
         />
         <color attach="background" args={['#4CAF50']} />
-        <fogExp2 attach="fog" args={['#4CAF50', 0.01]} />
         <ambientLight intensity={1.0} />
         <directionalLight 
           position={[10, 20, 10]} 
@@ -57,7 +63,7 @@ export default function GameCanvas() {
           <Player onCollectResource={handleCollectResource} />
         </Suspense>
         <Stats />
-      </Canvas>
+      </CanvasWrapper>
       
       {/* UI Overlay */}
       <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">

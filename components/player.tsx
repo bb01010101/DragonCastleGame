@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Sphere, Html } from '@react-three/drei'
 import * as THREE from 'three'
@@ -11,15 +11,26 @@ interface PlayerProps {
 
 export function Player({ onCollectResource }: PlayerProps) {
   const playerRef = useRef<THREE.Mesh>(null)
-  const { camera } = useThree()
-  const speed = 0.3 // Reduced speed for better control
+  const { camera, scene } = useThree()
+  const [isInitialized, setIsInitialized] = useState(false)
+  const speed = 0.3
   const targetPosition = useRef(new THREE.Vector3(0, 1, 0))
   const keysPressed = useRef<{ [key: string]: boolean }>({})
+
+  // Initialize player position
+  useEffect(() => {
+    if (playerRef.current && !isInitialized) {
+      playerRef.current.position.set(0, 1, 0)
+      camera.position.set(0, 20, 20)
+      camera.lookAt(0, 0, 0)
+      setIsInitialized(true)
+    }
+  }, [camera, isInitialized])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       keysPressed.current[e.key.toLowerCase()] = true
-      e.preventDefault() // Prevent page scrolling
+      e.preventDefault()
     }
     
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -36,7 +47,7 @@ export function Player({ onCollectResource }: PlayerProps) {
   }, [])
 
   useFrame(() => {
-    if (!playerRef.current) return
+    if (!playerRef.current || !isInitialized) return
 
     const movement = new THREE.Vector3(0, 0, 0)
     
