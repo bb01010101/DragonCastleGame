@@ -5,27 +5,20 @@
     <style>
         body {
             margin: 0;
-            padding: 20px;
-            background: #333;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            background: #333;
+            font-family: Arial, sans-serif;
         }
         canvas {
-            background: white;
-            border: 2px solid #333;
-        }
-        #debug {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            color: white;
+            border: 3px solid #2c3e50;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
     </style>
 </head>
 <body>
-    <div id="debug"></div>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
     <script src="game.js"></script>
 </body>
