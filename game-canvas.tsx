@@ -19,6 +19,7 @@ import { BuildMenu } from './components/build-menu'
 import { MiniMap } from './components/mini-map'
 import { Player } from './components/player'
 import { useGameState } from './hooks/use-game-state'
+import { PlayMenu } from './components/play-menu'
 
 // Disable SSR for Canvas
 const CanvasWrapper = dynamic(() => Promise.resolve(Canvas), {
@@ -30,6 +31,7 @@ export default function GameCanvas() {
   const [selectedBlockType, setSelectedBlockType] = useState<'wood-block' | 'stone-block' | null>(null)
   const [lastBlockType, setLastBlockType] = useState<'wood-block' | 'stone-block'>('wood-block')
   const { resources, addResources, spendResources } = useGameState()
+  const [gameState, setGameState] = useState<'menu' | 'playing'>('menu')
   
   const handleCollectResource = useCallback((type: string, amount: number) => {
     addResources({ [type]: amount })
@@ -73,6 +75,22 @@ export default function GameCanvas() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [selectedTool, lastBlockType])
+
+  const handlePlay = useCallback(() => {
+    setGameState('playing')
+  }, [])
+
+  const handleSandboxMode = useCallback(() => {
+    setGameState('playing')
+  }, [])
+
+  if (gameState === 'menu') {
+    return (
+      <div className="w-full h-screen relative select-none bg-[#2D5A27]">
+        <PlayMenu onPlay={handlePlay} onSandboxMode={handleSandboxMode} />
+      </div>
+    )
+  }
 
   return (
     <div className="w-full h-screen relative select-none">
