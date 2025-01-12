@@ -49,6 +49,15 @@ export default function GameCanvas() {
           up: [0, 1, 0],
           zoom: 40
         }}
+        onCreated={({ gl }) => {
+          gl.domElement.style.touchAction = 'none'
+        }}
+        raycaster={{
+          computeOffsets: (e) => ({
+            offsetX: e.clientX,
+            offsetY: e.clientY
+          })
+        }}
       >
         <OrthographicCamera 
           makeDefault 
@@ -116,7 +125,7 @@ export default function GameCanvas() {
 
       {/* Movement Controls Help */}
       <div className="absolute bottom-4 left-4 text-sm text-white bg-black/50 p-2 rounded">
-        WASD or Arrow Keys to move
+        Move cursor to guide character
         <br />
         Left Click to {selectedTool === 'gather' ? 'gather resources' : 'place blocks'}
       </div>

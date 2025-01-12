@@ -2,132 +2,111 @@
 
 import { useRef, useEffect, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { Vector3, Raycaster, Mesh } from 'three'
-import { Text } from '@react-three/drei'
+import { Vector3, Raycaster } from 'three'
+import { useGLTF } from '@react-three/drei'
+import { BLOCK_SIZE } from '../constants'
+import { checkCollision } from '../utils/collision'
 
-interface PlayerProps {
-  onCollectResource: (type: string, amount: number) => void
-  selectedTool: 'build' | 'gather'
-  selectedBlockType: 'wood-block' | 'stone-block' | null
-  setSelectedBlockType: (type: 'wood-block' | 'stone-block' | null) => void
-}
+const MOVEMENT_SPEED = 0.1
+const INTERACTION_DISTANCE = 2
 
 export function Player({ 
   onCollectResource, 
   selectedTool,
   selectedBlockType,
   setSelectedBlockType 
-}: PlayerProps) {
-  const meshRef = useRef<Mesh>(null)
-  const [position, setPosition] = useState<[number, number, number]>([0, 0.5, 0])
-  const [username] = useState('Player1') // In a real app, this would come from auth
-  const { camera } = useThree()
-  const raycaster = useRef(new Raycaster())
+}: { 
+  onCollectResource: (type: string, amount: number) => void
+  selectedTool: 'build' | 'gather'
+  selectedBlockType: string | null
+  setSelectedBlockType: (type: string | null) => void
+}) {
+  const { scene } = useGLTF('/models/character.glb')
+  const playerRef = useRef<THREE.Group>(null)
+  const targetPosition = useRef(new Vector3(0, 0, 0))
+  const { camera, raycaster, pointer } = useThree()
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const speed = 0.5
-      const [x, y, z] = position
-
-      switch (e.key.toLowerCase()) {
-        case 'w':
-        case 'arrowup':
-          setPosition([x, y, z - speed])
-          break
-        case 's':
-        case 'arrowdown':
-          setPosition([x, y, z + speed])
-          break
-        case 'a':
-        case 'arrowleft':
-          setPosition([x - speed, y, z])
-          break
-        case 'd':
-        case 'arrowright':
-          setPosition([x + speed, y, z])
-          break
-      }
+    if (playerRef.current) {
+      playerRef.current.position.set(0, 0, 0)
     }
+  }, [])
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [position])
+  useFrame((state) => {
+    if (!playerRef.current) return
 
-  useEffect(() => {
-    if (meshRef.current) {
-      camera.position.x = position[0]
-      camera.position.z = position[2] + 20
-      camera.lookAt(new Vector3(position[0], 0, position[2]))
-    }
-  }, [camera, position])
-
-  const handleClick = (event: any) => {
-    event.stopPropagation()
+    // Update target position based on mouse position
+    raycaster.setFromCamera(pointer, camera)
+    const intersects = raycaster.intersectObjects(state.scene.children, true)
     
-    if (!meshRef.current) return
-
-    raycaster.current.setFromCamera(event.point, camera)
-    const intersects = raycaster.current.intersectObjects(meshRef.current.parent?.children || [], true)
-
     if (intersects.length > 0) {
-      const clickedObject = intersects[0].object
+      const point = intersects[0].point
+      targetPosition.current.set(point.x, 0, point.z)
+    }
 
-      if (selectedTool === 'gather') {
-        const userData = clickedObject.userData
-        if (userData.type === 'environment-object') {
-          if (userData.damage) {
-            userData.damage(25)
+    // Move player towards target position
+    const direction = targetPosition.current.clone().sub(playerRef.current.position)
+    if (direction.length() > 0.1) {
+      direction.normalize()
+      const newPosition = playerRef.current.position.clone()
+      newPosition.add(direction.multiplyScalar(MOVEMENT_SPEED))
+      
+      // Check for collisions before moving
+      if (!checkCollision(newPosition)) {
+        playerRef.current.position.copy(newPosition)
+      }
+
+      // Update player rotation to face movement direction
+      const angle = Math.atan2(direction.x, direction.z)
+      playerRef.current.rotation.y = angle
+    }
+
+    // Update camera position to follow player
+    camera.position.x = playerRef.current.position.x
+    camera.position.z = playerRef.current.position.z + 20
+    camera.lookAt(playerRef.current.position)
+  })
+
+  // Handle mouse click for resource gathering or block placement
+  useEffect(() => {
+    const handleClick = () => {
+      if (!playerRef.current) return
+
+      const raycaster = new Raycaster()
+      raycaster.setFromCamera(pointer, camera)
+      const intersects = raycaster.intersectObjects([], true) // Add relevant objects to check intersection with
+
+      if (intersects.length > 0) {
+        const intersection = intersects[0]
+        const distance = intersection.point.distanceTo(playerRef.current.position)
+
+        if (distance <= INTERACTION_DISTANCE) {
+          if (selectedTool === 'gather') {
+            // Handle resource gathering
+            const resourceType = intersection.object.userData.type
+            if (resourceType) {
+              onCollectResource(resourceType, 1)
+            }
+          } else if (selectedTool === 'build' && selectedBlockType) {
+            // Handle block placement
+            const position = intersection.point
+            position.x = Math.round(position.x / BLOCK_SIZE) * BLOCK_SIZE
+            position.z = Math.round(position.z / BLOCK_SIZE) * BLOCK_SIZE
+            // Add block placement logic here
           }
         }
-      } else if (selectedTool === 'build' && selectedBlockType) {
-        const point = intersects[0].point
-        point.y = 0.5 // Place blocks at ground level
-        
-        // Round to grid
-        point.x = Math.round(point.x)
-        point.z = Math.round(point.z)
-        
-        // Create new block at position
-        const blockPosition: [number, number, number] = [point.x, point.y, point.z]
-        meshRef.current.parent?.add(
-          <mesh position={blockPosition}>
-            {selectedBlockType === 'wood-block' ? (
-              <>
-                <boxGeometry args={[1, 1, 1]} />
-                <meshStandardMaterial color="#8B4513" />
-              </>
-            ) : (
-              <>
-                <sphereGeometry args={[0.5, 32, 32]} />
-                <meshStandardMaterial color="#808080" />
-              </>
-            )}
-          </mesh>
-        )
-        setSelectedBlockType(null)
       }
     }
-  }
+
+    window.addEventListener('click', handleClick)
+    return () => window.removeEventListener('click', handleClick)
+  }, [camera, pointer, selectedTool, selectedBlockType, onCollectResource])
 
   return (
-    <group>
-      <mesh
-        ref={meshRef}
-        position={position}
-        onClick={handleClick}
-      >
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color="#FF0000" />
-      </mesh>
-      <Text
-        position={[position[0], position[1] + 1.5, position[2]]}
-        fontSize={0.5}
-        color="white"
-        anchorX="center"
-        anchorY="middle"
-      >
-        {username}
-      </Text>
-    </group>
+    <primitive 
+      ref={playerRef}
+      object={scene.clone()} 
+      scale={[0.5, 0.5, 0.5]}
+    />
   )
 }
