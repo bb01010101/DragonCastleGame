@@ -113,7 +113,7 @@ export function Player({
 
       const localRaycaster = new Raycaster()
       localRaycaster.setFromCamera(pointer, camera)
-      const intersects = localRaycaster.intersectObjects(state.scene.children || [], true)
+      const intersects = localRaycaster.intersectObjects(camera.parent?.children || [], true)
 
       if (intersects.length > 0) {
         const intersection = intersects[0]
@@ -156,7 +156,7 @@ export function Player({
 
     window.addEventListener('click', handleClick)
     return () => window.removeEventListener('click', handleClick)
-  }, [camera, pointer, isPaused, selectedTool, selectedBlockType, onCollectResource, spendResources, resources, state.scene.children])
+  }, [camera, pointer, isPaused, selectedTool, selectedBlockType, onCollectResource, spendResources, resources])
 
   useFrame((state, delta) => {
     if (!playerRef.current) return
