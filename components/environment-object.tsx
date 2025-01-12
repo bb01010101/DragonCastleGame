@@ -1,23 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Mesh } from 'three'
+import { Mesh, Group } from 'three'
 
 interface EnvironmentObjectProps {
   position: [number, number, number]
-  type: 'tree' | 'rock'
+  type: 'tree' | 'rock' | 'wood-block' | 'stone-block'
   onDestroy: (position: [number, number, number], type: string) => void
   onCollectResource: (type: string, amount: number) => void
 }
 
 export function EnvironmentObject({ position, type, onDestroy, onCollectResource }: EnvironmentObjectProps) {
+  const groupRef = useRef<Group>(null)
   const meshRef = useRef<Mesh>(null)
-  const [health, setHealth] = useState(type === 'rock' ? 100 : 50)
+  const [health, setHealth] = useState(type === 'rock' || type === 'stone-block' ? 100 : 50)
   const [isBeingHit, setIsBeingHit] = useState(false)
+  const [hitDirection, setHitDirection] = useState(1)
 
   // Set userData when mesh is created
   useEffect(() => {
-    if (meshRef.current) {
-      meshRef.current.userData.type = type
+    if (groupRef.current) {
+      groupRef.current.userData.type = type
     }
   }, [type])
 
@@ -25,16 +27,11 @@ export function EnvironmentObject({ position, type, onDestroy, onCollectResource
     if (health <= 0) return
     
     setIsBeingHit(true)
+    setHitDirection(Math.random() > 0.5 ? 1 : -1)
     setHealth(prev => {
-      const damage = type === 'rock' ? 10 : 25
+      const damage = type === 'rock' || type === 'stone-block' ? 10 : 25
       const newHealth = prev - damage
       if (newHealth <= 0) {
-        // Add resource when object is destroyed
-        if (type === 'tree') {
-          onCollectResource('wood', 1)
-        } else if (type === 'rock') {
-          onCollectResource('stone', 1)
-        }
         onDestroy(position, type)
       }
       return newHealth
@@ -44,22 +41,23 @@ export function EnvironmentObject({ position, type, onDestroy, onCollectResource
   }
 
   useFrame(() => {
-    if (meshRef.current && isBeingHit) {
-      meshRef.current.scale.x = 1.1
-      meshRef.current.scale.y = 0.9
-    } else if (meshRef.current) {
-      meshRef.current.scale.x = 1
-      meshRef.current.scale.y = 1
+    if (groupRef.current && isBeingHit) {
+      // Random wobble animation
+      groupRef.current.rotation.z = Math.sin(Date.now() * 0.05) * 0.1 * hitDirection
+      groupRef.current.position.y = Math.abs(Math.sin(Date.now() * 0.05)) * 0.1
+    } else if (groupRef.current) {
+      groupRef.current.rotation.z = 0
+      groupRef.current.position.y = 0
     }
   })
 
   if (health <= 0) return null
 
   return (
-    <group position={position}>
+    <group ref={groupRef} position={position}>
       {type === 'tree' ? (
         <>
-          <mesh ref={meshRef} position={[0, 1, 0]} userData={{ type }}>
+          <mesh position={[0, 1, 0]} userData={{ type }}>
             <cylinderGeometry args={[0.2, 0.3, 2]} />
             <meshStandardMaterial color="#4b3621" />
           </mesh>
@@ -68,17 +66,25 @@ export function EnvironmentObject({ position, type, onDestroy, onCollectResource
             <meshStandardMaterial color="#228B22" />
           </mesh>
         </>
-      ) : (
+      ) : type === 'rock' ? (
         <mesh ref={meshRef} userData={{ type }}>
           <boxGeometry args={[1.5, 1.5, 1.5]} />
           <meshStandardMaterial color="#808080" />
         </mesh>
+      ) : (
+        // Wood or stone block
+        <mesh ref={meshRef} userData={{ type }}>
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial color={type === 'wood-block' ? '#8B4513' : '#808080'} />
+        </mesh>
       )}
+      {/* Invisible hit box */}
       <mesh
-        position={[0, 3, 0]}
+        scale={type === 'tree' ? [2, 4, 2] : [1.5, 1.5, 1.5]}
+        position={type === 'tree' ? [0, 2, 0] : [0, 0, 0]}
         onClick={handleHit}
       >
-        <boxGeometry args={[2, 3, 2]} />
+        <boxGeometry />
         <meshStandardMaterial transparent opacity={0} />
       </mesh>
     </group>

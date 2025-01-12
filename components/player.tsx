@@ -30,6 +30,12 @@ const BLOCK_HEALTH = {
   'stone-block': 4
 }
 
+interface Fist {
+  position: Vector3
+  scale: Vector3
+  isPunching: boolean
+}
+
 export function Player({ 
   onCollectResource, 
   selectedTool,
@@ -59,6 +65,16 @@ export function Player({
     type: 'wood-block' | 'stone-block'
   }>>([])
   const [blockHealth, setBlockHealth] = useState<Record<string, number>>({})
+  const [leftFist, setLeftFist] = useState<Fist>({
+    position: new Vector3(-0.5, 0, -1),
+    scale: new Vector3(1, 1, 1),
+    isPunching: false
+  })
+  const [rightFist, setRightFist] = useState<Fist>({
+    position: new Vector3(0.5, 0, -1),
+    scale: new Vector3(1, 1, 1),
+    isPunching: false
+  })
 
   const ghostMaterial = useMemo(() => {
     const material = new MeshStandardMaterial({
@@ -108,6 +124,28 @@ export function Player({
     }
   }, [])
 
+  // Animation function for fists
+  const punchFist = (isLeft: boolean) => {
+    const fist = isLeft ? leftFist : rightFist
+    const setFist = isLeft ? setLeftFist : setRightFist
+    
+    // Start punch
+    setFist({
+      ...fist,
+      position: new Vector3(fist.position.x, fist.position.y, -1.5),
+      isPunching: true
+    })
+
+    // Return to normal position
+    setTimeout(() => {
+      setFist({
+        ...fist,
+        position: new Vector3(fist.position.x, fist.position.y, -1),
+        isPunching: false
+      })
+    }, 200)
+  }
+
   // Handle click events for building and destroying
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -136,11 +174,13 @@ export function Player({
                 position: blockPos.clone(),
                 type: selectedBlockType as 'wood-block' | 'stone-block'
               }])
+              punchFist(false) // Right fist punches when building
             }
           } else if (selectedTool === 'gather') {
             const target = intersection.object
-            const blockId = `${target.position.x},${target.position.z}`
-            const blockType = target.userData?.type
+            const targetParent = target.parent
+            const blockId = `${targetParent?.position.x || target.position.x},${targetParent?.position.z || target.position.z}`
+            const blockType = targetParent?.userData?.type || target.userData?.type
 
             if (blockType && BLOCK_HEALTH[blockType]) {
               setBlockHealth(prev => {
@@ -158,8 +198,8 @@ export function Player({
                   // Remove block if it's a placed block
                   if (blockType === 'wood-block' || blockType === 'stone-block') {
                     setPlacedBlocks(prev => prev.filter(block => 
-                      block.position.x !== target.position.x || 
-                      block.position.z !== target.position.z
+                      block.position.x !== (targetParent?.position.x || target.position.x) || 
+                      block.position.z !== (targetParent?.position.z || target.position.z)
                     ))
                   }
 
@@ -170,6 +210,9 @@ export function Player({
                 
                 return { ...prev, [blockId]: newHealth }
               })
+              // Both fists punch when destroying
+              punchFist(true)
+              punchFist(false)
             }
           }
         }
@@ -259,6 +302,16 @@ export function Player({
     camera.position.x = playerRef.current.position.x
     camera.position.z = playerRef.current.position.z + 20
     camera.lookAt(playerRef.current.position)
+
+    // Update fist positions to point at cursor
+    if (intersects.length > 0) {
+      const point = intersects[0].point
+      const direction = point.clone().sub(playerRef.current.position).normalize()
+      const angle = Math.atan2(direction.x, direction.z)
+      
+      // Update fist rotations
+      playerRef.current.rotation.y = angle
+    }
   })
 
   return (
@@ -266,6 +319,24 @@ export function Player({
       <mesh ref={playerRef}>
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial color="#FF0000" />
+        
+        {/* Left Fist */}
+        <mesh
+          position={leftFist.position}
+          scale={leftFist.scale}
+        >
+          <sphereGeometry args={[0.2, 16, 16]} />
+          <meshStandardMaterial color="#FFA07A" />
+        </mesh>
+
+        {/* Right Fist */}
+        <mesh
+          position={rightFist.position}
+          scale={rightFist.scale}
+        >
+          <sphereGeometry args={[0.2, 16, 16]} />
+          <meshStandardMaterial color="#FFA07A" />
+        </mesh>
       </mesh>
       
       {/* Interaction radius visualization */}
