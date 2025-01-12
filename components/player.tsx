@@ -46,9 +46,6 @@ export function Player({
   const [deathTimerVisible, setDeathTimerVisible] = useState(false)
   const [timeLeft, setTimeLeft] = useState(DEATH_TIMER / 1000)
   const [isPaused, setIsPaused] = useState(false)
-  const [isMining, setIsMining] = useState(false)
-  const [currentMiningTarget, setCurrentMiningTarget] = useState<{ object: THREE.Object3D, type: string } | null>(null)
-  const lastMiningTime = useRef(Date.now())
   const [previewPosition, setPreviewPosition] = useState<Vector3 | null>(null)
   const [isInRange, setIsInRange] = useState(false)
   const [placedBlocks, setPlacedBlocks] = useState<Array<{
@@ -87,8 +84,6 @@ export function Player({
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         setIsPaused(false)
-        setIsMining(false)
-        setCurrentMiningTarget(null)
       }
     }
 
@@ -106,7 +101,7 @@ export function Player({
     }
   }, [])
 
-  // Handle click events for mining and building
+  // Handle click events for building
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (!playerRef.current || !isPaused || e.button !== 0) return
@@ -115,40 +110,24 @@ export function Player({
       localRaycaster.setFromCamera(pointer, camera)
       const intersects = localRaycaster.intersectObjects(camera.parent?.children || [], true)
 
-      if (intersects.length > 0) {
+      if (intersects.length > 0 && selectedTool === 'build' && selectedBlockType) {
         const intersection = intersects[0]
         const distance = intersection.point.distanceTo(playerRef.current.position)
-        const currentRadius = selectedTool === 'build' ? BUILD_RADIUS : MINING_RADIUS
 
-        if (distance <= currentRadius) {
-          if (selectedTool === 'gather') {
-            const target = intersection.object
-            const resourceType = target.userData?.type
+        if (distance <= BUILD_RADIUS) {
+          const point = intersection.point
+          const blockPos = new Vector3(
+            Math.round(point.x / BLOCK_SIZE) * BLOCK_SIZE,
+            0,
+            Math.round(point.z / BLOCK_SIZE) * BLOCK_SIZE
+          )
 
-            console.log('Mining resource:', resourceType) // Debug log
-            
-            if (resourceType === 'tree') {
-              console.log('Adding wood') // Debug log
-              onCollectResource('wood', 1)
-            } else if (resourceType === 'rock') {
-              console.log('Adding stone') // Debug log
-              onCollectResource('stone', 1)
-            }
-          } else if (selectedTool === 'build' && selectedBlockType) {
-            const point = intersection.point
-            const blockPos = new Vector3(
-              Math.round(point.x / BLOCK_SIZE) * BLOCK_SIZE,
-              0,
-              Math.round(point.z / BLOCK_SIZE) * BLOCK_SIZE
-            )
-
-            const cost = BLOCK_COSTS[selectedBlockType]
-            if (cost && spendResources(cost)) {
-              setPlacedBlocks(prev => [...prev, {
-                position: blockPos.clone(),
-                type: selectedBlockType as 'wood-block' | 'stone-block'
-              }])
-            }
+          const cost = BLOCK_COSTS[selectedBlockType]
+          if (cost && spendResources(cost)) {
+            setPlacedBlocks(prev => [...prev, {
+              position: blockPos.clone(),
+              type: selectedBlockType as 'wood-block' | 'stone-block'
+            }])
           }
         }
       }
@@ -156,7 +135,7 @@ export function Player({
 
     window.addEventListener('click', handleClick)
     return () => window.removeEventListener('click', handleClick)
-  }, [camera, pointer, isPaused, selectedTool, selectedBlockType, onCollectResource, spendResources, resources])
+  }, [camera, pointer, isPaused, selectedTool, selectedBlockType, spendResources])
 
   useFrame((state, delta) => {
     if (!playerRef.current) return
@@ -208,22 +187,6 @@ export function Player({
           setPreviewPosition(blockPos)
         } else {
           setPreviewPosition(null)
-        }
-
-        // Handle mining animation and UI
-        if (selectedTool === 'gather' && isInRange) {
-          const target = intersection.object
-          const resourceType = target.userData.type
-          
-          if (resourceType && (resourceType === 'tree' || resourceType === 'rock')) {
-            if (!isMining || !currentMiningTarget || currentMiningTarget.object !== target) {
-              setIsMining(true)
-              setCurrentMiningTarget({ object: target, type: resourceType })
-            }
-          } else {
-            setIsMining(false)
-            setCurrentMiningTarget(null)
-          }
         }
       }
     }
@@ -303,15 +266,6 @@ export function Player({
         <Html center position={[0, 2, 0]}>
           <div className="bg-red-500/80 text-white px-4 py-2 rounded-lg text-xl font-bold whitespace-nowrap">
             Return to boundary! Dying in {timeLeft}s
-          </div>
-        </Html>
-      )}
-
-      {/* Mining Progress UI */}
-      {isMining && currentMiningTarget && (
-        <Html center position={[0, -2, 0]}>
-          <div className="bg-black/50 text-white px-4 py-2 rounded whitespace-nowrap">
-            Mining {currentMiningTarget.type}...
           </div>
         </Html>
       )}

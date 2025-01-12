@@ -10,7 +10,11 @@ interface MapObject {
   id: string
 }
 
-export function GameMap() {
+interface GameMapProps {
+  onCollectResource: (type: string, amount: number) => void
+}
+
+export function GameMap({ onCollectResource }: GameMapProps) {
   const [mapObjects, setMapObjects] = useState<MapObject[]>(() => {
     const objects: MapObject[] = []
     // Generate random trees and rocks
@@ -47,6 +51,7 @@ export function GameMap() {
             type={object.type}
             position={object.position}
             onDestroy={handleObjectDestroy}
+            onCollectResource={onCollectResource}
           />
         ) : (
           <PlacedBlock

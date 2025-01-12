@@ -109,7 +109,7 @@ export default function GameCanvas() {
           shadow-mapSize={[2048, 2048]}
         />
         <Suspense fallback={null}>
-          <GameMap />
+          <GameMap onCollectResource={handleCollectResource} />
           <Player 
             onCollectResource={handleCollectResource}
             selectedTool={selectedTool}

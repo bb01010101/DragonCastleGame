@@ -6,9 +6,10 @@ interface EnvironmentObjectProps {
   position: [number, number, number]
   type: 'tree' | 'rock'
   onDestroy: (position: [number, number, number], type: string) => void
+  onCollectResource: (type: string, amount: number) => void
 }
 
-export function EnvironmentObject({ position, type, onDestroy }: EnvironmentObjectProps) {
+export function EnvironmentObject({ position, type, onDestroy, onCollectResource }: EnvironmentObjectProps) {
   const meshRef = useRef<Mesh>(null)
   const [health, setHealth] = useState(type === 'rock' ? 100 : 50)
   const [isBeingHit, setIsBeingHit] = useState(false)
@@ -28,6 +29,12 @@ export function EnvironmentObject({ position, type, onDestroy }: EnvironmentObje
       const damage = type === 'rock' ? 10 : 25
       const newHealth = prev - damage
       if (newHealth <= 0) {
+        // Add resource when object is destroyed
+        if (type === 'tree') {
+          onCollectResource('wood', 1)
+        } else if (type === 'rock') {
+          onCollectResource('stone', 1)
+        }
         onDestroy(position, type)
       }
       return newHealth
