@@ -2,7 +2,7 @@
 
 import { Canvas } from '@react-three/fiber'
 import { OrthographicCamera, Stats } from '@react-three/drei'
-import { useState, useCallback, Suspense } from 'react'
+import { useState, useCallback, Suspense, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import {
@@ -37,6 +37,34 @@ export default function GameCanvas() {
   const handleBlockSelect = useCallback((type: 'wood-block' | 'stone-block') => {
     setSelectedBlockType(type)
   }, [])
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      switch (e.code) {
+        case 'KeyQ':
+          setSelectedTool(prev => {
+            const newTool = prev === 'gather' ? 'build' : 'gather'
+            if (newTool !== 'build') setSelectedBlockType(null)
+            return newTool
+          })
+          break
+        case 'Digit1':
+          if (selectedTool === 'build') {
+            setSelectedBlockType('wood-block')
+          }
+          break
+        case 'Digit2':
+          if (selectedTool === 'build') {
+            setSelectedBlockType('stone-block')
+          }
+          break
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedTool])
 
   return (
     <div className="w-full h-screen relative">
@@ -102,8 +130,8 @@ export default function GameCanvas() {
                 <SelectValue placeholder="Select tool" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="gather">Gather Resources</SelectItem>
-                <SelectItem value="build">Build</SelectItem>
+                <SelectItem value="gather">Gather Resources (Q)</SelectItem>
+                <SelectItem value="build">Build (Q)</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="secondary">Menu</Button>
@@ -117,6 +145,7 @@ export default function GameCanvas() {
             resources={resources} 
             onBuild={spendResources}
             onBlockSelect={handleBlockSelect}
+            selectedBlockType={selectedBlockType}
           />
         </div>
       )}
@@ -129,7 +158,9 @@ export default function GameCanvas() {
       <div className="absolute bottom-4 left-4 text-sm text-white bg-black/50 p-2 rounded">
         Move cursor to guide character
         <br />
-        Left Click to {selectedTool === 'gather' ? 'gather resources' : 'place blocks'}
+        Space + {selectedTool === 'gather' ? 'aim at resources to gather' : 'aim to place blocks'}
+        <br />
+        Q to toggle mode, 1-2 for block types
       </div>
     </div>
   )
