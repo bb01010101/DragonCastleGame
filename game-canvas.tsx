@@ -79,6 +79,8 @@ export default function GameCanvas() {
             selectedTool={selectedTool}
             selectedBlockType={selectedBlockType}
             setSelectedBlockType={setSelectedBlockType}
+            resources={resources}
+            spendResources={spendResources}
           />
         </Suspense>
         <Stats />
