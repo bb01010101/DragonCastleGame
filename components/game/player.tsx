@@ -24,51 +24,53 @@ export function Player({
   const { camera, gl } = useThree()
   const raycaster = useRef(new Raycaster())
   const targetPosition = useRef(new Vector3(0, 0.5, 0))
-  const groundPlane = useRef(new Plane(new Vector3(0, 1, 0), 0))
   const mouse = useRef(new Vector2())
 
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
-      // Convert mouse position to normalized device coordinates
-      mouse.current.x = (event.clientX / gl.domElement.clientWidth) * 2 - 1
-      mouse.current.y = -(event.clientY / gl.domElement.clientHeight) * 2 + 1
+      // Get mouse position
+      const rect = gl.domElement.getBoundingClientRect()
+      mouse.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+      mouse.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
 
-      // Update the picking ray with the camera and mouse position
+      // Update raycaster
       raycaster.current.setFromCamera(mouse.current, camera)
 
-      // Calculate intersection with the ground plane
-      const intersection = new Vector3()
-      if (raycaster.current.ray.intersectPlane(groundPlane.current, intersection)) {
-        targetPosition.current.copy(intersection)
-        targetPosition.current.y = 0.5 // Keep player at constant height
+      // Find intersection with ground plane (y = 0)
+      const plane = new Plane(new Vector3(0, 1, 0), 0)
+      const target = new Vector3()
+      raycaster.current.ray.intersectPlane(plane, target)
+
+      if (target) {
+        target.y = 0.5 // Keep constant height
+        targetPosition.current = target
       }
     }
 
     window.addEventListener('mousemove', handleMouseMove)
     return () => window.removeEventListener('mousemove', handleMouseMove)
-  }, [camera, gl.domElement.clientWidth, gl.domElement.clientHeight])
+  }, [camera, gl])
 
   useFrame(() => {
-    if (meshRef.current) {
-      // Calculate direction to target
+    if (meshRef.current && targetPosition.current) {
+      const currentPos = new Vector3(position[0], position[1], position[2])
       const direction = new Vector3()
-      direction.subVectors(targetPosition.current, meshRef.current.position)
+      direction.subVectors(targetPosition.current, currentPos)
       
       // Only move if we're not very close to the target
       if (direction.length() > 0.1) {
-        // Normalize direction and scale by speed
         direction.normalize()
-        const speed = 0.1 // Adjust this value to change movement speed
+        const speed = 0.15 // Adjust speed as needed
         direction.multiplyScalar(speed)
         
-        // Update position
-        const newPos = new Vector3().addVectors(meshRef.current.position, direction)
+        const newPos = new Vector3()
+        newPos.addVectors(currentPos, direction)
         setPosition([newPos.x, newPos.y, newPos.z])
-        
-        // Update camera position
+
+        // Update camera to follow player
         camera.position.x = newPos.x
         camera.position.z = newPos.z + 20
-        camera.lookAt(new Vector3(newPos.x, 0, newPos.z))
+        camera.lookAt(newPos.x, 0, newPos.z)
       }
     }
   })
