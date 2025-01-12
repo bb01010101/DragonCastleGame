@@ -75,6 +75,7 @@ export function Player({
     scale: new Vector3(1, 1, 1),
     isPunching: false
   })
+  const [isLeftPunching, setIsLeftPunching] = useState(true)
 
   const ghostMaterial = useMemo(() => {
     const material = new MeshStandardMaterial({
@@ -124,7 +125,7 @@ export function Player({
     }
   }, [])
 
-  // Animation function for fists
+  // Animation function for alternating fists
   const punchFist = (isLeft: boolean) => {
     const fist = isLeft ? leftFist : rightFist
     const setFist = isLeft ? setLeftFist : setRightFist
@@ -132,7 +133,7 @@ export function Player({
     // Start punch
     setFist({
       ...fist,
-      position: new Vector3(fist.position.x, fist.position.y, -1.5),
+      position: new Vector3(fist.position.x, fist.position.y, 1.5),
       isPunching: true
     })
 
@@ -140,7 +141,7 @@ export function Player({
     setTimeout(() => {
       setFist({
         ...fist,
-        position: new Vector3(fist.position.x, fist.position.y, -1),
+        position: new Vector3(fist.position.x, fist.position.y, 1),
         isPunching: false
       })
     }, 200)
@@ -182,9 +183,15 @@ export function Player({
             const blockId = `${targetParent?.position.x || target.position.x},${targetParent?.position.z || target.position.z}`
             const blockType = targetParent?.userData?.type || target.userData?.type
 
-            if (blockType && BLOCK_HEALTH[blockType]) {
+            // Check if it's a placed block
+            const isPlacedBlock = placedBlocks.some(block => 
+              block.position.x === (targetParent?.position.x || target.position.x) &&
+              block.position.z === (targetParent?.position.z || target.position.z)
+            )
+
+            if ((blockType && BLOCK_HEALTH[blockType]) || isPlacedBlock) {
               setBlockHealth(prev => {
-                const currentHealth = prev[blockId] || BLOCK_HEALTH[blockType]
+                const currentHealth = prev[blockId] || BLOCK_HEALTH[blockType] || 50
                 const newHealth = currentHealth - 1
                 
                 if (newHealth <= 0) {
@@ -196,7 +203,7 @@ export function Player({
                   }
 
                   // Remove block if it's a placed block
-                  if (blockType === 'wood-block' || blockType === 'stone-block') {
+                  if (blockType === 'wood-block' || blockType === 'stone-block' || isPlacedBlock) {
                     setPlacedBlocks(prev => prev.filter(block => 
                       block.position.x !== (targetParent?.position.x || target.position.x) || 
                       block.position.z !== (targetParent?.position.z || target.position.z)
@@ -210,9 +217,9 @@ export function Player({
                 
                 return { ...prev, [blockId]: newHealth }
               })
-              // Both fists punch when destroying
-              punchFist(true)
-              punchFist(false)
+              // Alternate fists when destroying
+              punchFist(isLeftPunching)
+              setIsLeftPunching(!isLeftPunching)
             }
           }
         }
@@ -221,7 +228,7 @@ export function Player({
 
     window.addEventListener('click', handleClick)
     return () => window.removeEventListener('click', handleClick)
-  }, [camera, pointer, isPaused, selectedTool, selectedBlockType, spendResources, onCollectResource])
+  }, [camera, pointer, isPaused, selectedTool, selectedBlockType, spendResources, onCollectResource, isLeftPunching])
 
   useFrame((state, delta) => {
     if (!playerRef.current) return
@@ -309,8 +316,21 @@ export function Player({
       const direction = point.clone().sub(playerRef.current.position).normalize()
       const angle = Math.atan2(direction.x, direction.z)
       
-      // Update fist rotations
+      // Update player rotation
       playerRef.current.rotation.y = angle
+
+      // Position fists on the side facing the cursor
+      const leftPos = new Vector3(-0.5, 0, 1)
+      const rightPos = new Vector3(0.5, 0, 1)
+
+      setLeftFist(prev => ({
+        ...prev,
+        position: leftPos
+      }))
+      setRightFist(prev => ({
+        ...prev,
+        position: rightPos
+      }))
     }
   })
 

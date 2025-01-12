@@ -137,7 +137,7 @@ export default function GameCanvas() {
                 <SelectValue placeholder="Select tool" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="gather">Gather Resources (Q)</SelectItem>
+                <SelectItem value="gather">Destroy (Q)</SelectItem>
                 <SelectItem value="build">Build (Q)</SelectItem>
               </SelectContent>
             </Select>
