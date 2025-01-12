@@ -8,10 +8,9 @@ import { BLOCK_SIZE } from '../constants'
 import { checkCollision } from '../utils/collision'
 
 const MOVEMENT_SPEED = 0.1
-const MINING_RADIUS = 4
-const BUILD_RADIUS = 6
+const INTERACTION_RADIUS = 6 // Same radius for both building and destroying
 const BOUNDARY_RADIUS = 50
-const DEATH_TIMER = 5000 // 5 seconds in milliseconds
+const DEATH_TIMER = 5000
 const SPAWN_POSITION = new Vector3(0, 0, 0)
 const MINING_SPEED = 1 // resources per second
 const BLOCK_COSTS = {
@@ -22,6 +21,13 @@ const BLOCK_COSTS = {
 const BLOCK_COLORS = {
   'wood-block': '#8B4513',
   'stone-block': '#808080'
+}
+
+const BLOCK_HEALTH = {
+  'tree': 1,
+  'rock': 3,
+  'wood-block': 2,
+  'stone-block': 4
 }
 
 export function Player({ 
@@ -52,6 +58,7 @@ export function Player({
     position: Vector3,
     type: 'wood-block' | 'stone-block'
   }>>([])
+  const [blockHealth, setBlockHealth] = useState<Record<string, number>>({})
 
   const ghostMaterial = useMemo(() => {
     const material = new MeshStandardMaterial({
@@ -101,7 +108,7 @@ export function Player({
     }
   }, [])
 
-  // Handle click events for building
+  // Handle click events for building and destroying
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (!playerRef.current || !isPaused || e.button !== 0) return
@@ -110,24 +117,60 @@ export function Player({
       localRaycaster.setFromCamera(pointer, camera)
       const intersects = localRaycaster.intersectObjects(camera.parent?.children || [], true)
 
-      if (intersects.length > 0 && selectedTool === 'build' && selectedBlockType) {
+      if (intersects.length > 0) {
         const intersection = intersects[0]
         const distance = intersection.point.distanceTo(playerRef.current.position)
 
-        if (distance <= BUILD_RADIUS) {
-          const point = intersection.point
-          const blockPos = new Vector3(
-            Math.round(point.x / BLOCK_SIZE) * BLOCK_SIZE,
-            0,
-            Math.round(point.z / BLOCK_SIZE) * BLOCK_SIZE
-          )
+        if (distance <= INTERACTION_RADIUS) {
+          if (selectedTool === 'build' && selectedBlockType) {
+            const point = intersection.point
+            const blockPos = new Vector3(
+              Math.round(point.x / BLOCK_SIZE) * BLOCK_SIZE,
+              0,
+              Math.round(point.z / BLOCK_SIZE) * BLOCK_SIZE
+            )
 
-          const cost = BLOCK_COSTS[selectedBlockType]
-          if (cost && spendResources(cost)) {
-            setPlacedBlocks(prev => [...prev, {
-              position: blockPos.clone(),
-              type: selectedBlockType as 'wood-block' | 'stone-block'
-            }])
+            const cost = BLOCK_COSTS[selectedBlockType]
+            if (cost && spendResources(cost)) {
+              setPlacedBlocks(prev => [...prev, {
+                position: blockPos.clone(),
+                type: selectedBlockType as 'wood-block' | 'stone-block'
+              }])
+            }
+          } else if (selectedTool === 'gather') {
+            const target = intersection.object
+            const blockId = `${target.position.x},${target.position.z}`
+            const blockType = target.userData?.type
+
+            if (blockType && BLOCK_HEALTH[blockType]) {
+              setBlockHealth(prev => {
+                const currentHealth = prev[blockId] || BLOCK_HEALTH[blockType]
+                const newHealth = currentHealth - 1
+                
+                if (newHealth <= 0) {
+                  // Handle resource collection for all types
+                  if (blockType === 'tree' || blockType === 'wood-block') {
+                    onCollectResource('wood', 1)
+                  } else if (blockType === 'rock' || blockType === 'stone-block') {
+                    onCollectResource('stone', 1)
+                  }
+
+                  // Remove block if it's a placed block
+                  if (blockType === 'wood-block' || blockType === 'stone-block') {
+                    setPlacedBlocks(prev => prev.filter(block => 
+                      block.position.x !== target.position.x || 
+                      block.position.z !== target.position.z
+                    ))
+                  }
+
+                  const newHealthState = { ...prev }
+                  delete newHealthState[blockId]
+                  return newHealthState
+                }
+                
+                return { ...prev, [blockId]: newHealth }
+              })
+            }
           }
         }
       }
@@ -135,7 +178,7 @@ export function Player({
 
     window.addEventListener('click', handleClick)
     return () => window.removeEventListener('click', handleClick)
-  }, [camera, pointer, isPaused, selectedTool, selectedBlockType, spendResources])
+  }, [camera, pointer, isPaused, selectedTool, selectedBlockType, spendResources, onCollectResource])
 
   useFrame((state, delta) => {
     if (!playerRef.current) return
@@ -144,6 +187,10 @@ export function Player({
     const intersects = raycaster.intersectObjects(state.scene.children, true)
     
     if (!isPaused) {
+      // Clear preview when moving
+      setPreviewPosition(null)
+      setIsInRange(false)
+
       if (intersects.length > 0) {
         const point = intersects[0].point
         targetPosition.current.set(point.x, 0, point.z)
@@ -170,8 +217,7 @@ export function Player({
       if (intersects.length > 0) {
         const intersection = intersects[0]
         const distance = intersection.point.distanceTo(playerRef.current.position)
-        const currentRadius = selectedTool === 'build' ? BUILD_RADIUS : MINING_RADIUS
-        setIsInRange(distance <= currentRadius)
+        setIsInRange(distance <= INTERACTION_RADIUS)
 
         if (selectedTool === 'build' && selectedBlockType) {
           const point = intersection.point
@@ -225,12 +271,12 @@ export function Player({
       {/* Interaction radius visualization */}
       {selectedTool === 'build' ? (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.4, 0]}>
-          <ringGeometry args={[0, BUILD_RADIUS, 64]} />
+          <ringGeometry args={[0, INTERACTION_RADIUS, 64]} />
           <meshBasicMaterial color="#4A90E2" opacity={0.5} transparent />
         </mesh>
       ) : (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.4, 0]}>
-          <ringGeometry args={[0, MINING_RADIUS, 64]} />
+          <ringGeometry args={[0, INTERACTION_RADIUS, 64]} />
           <meshBasicMaterial color="#F5A623" opacity={0.5} transparent />
         </mesh>
       )}
