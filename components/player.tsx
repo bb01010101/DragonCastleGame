@@ -113,7 +113,7 @@ export function Player({
 
       const localRaycaster = new Raycaster()
       localRaycaster.setFromCamera(pointer, camera)
-      const intersects = localRaycaster.intersectObjects(camera.parent?.children || [], true)
+      const intersects = localRaycaster.intersectObjects(state.scene.children || [], true)
 
       if (intersects.length > 0) {
         const intersection = intersects[0]
@@ -123,11 +123,15 @@ export function Player({
         if (distance <= currentRadius) {
           if (selectedTool === 'gather') {
             const target = intersection.object
-            const resourceType = target.userData.type
+            const resourceType = target.userData?.type
+
+            console.log('Mining resource:', resourceType) // Debug log
             
             if (resourceType === 'tree') {
+              console.log('Adding wood') // Debug log
               onCollectResource('wood', 1)
             } else if (resourceType === 'rock') {
+              console.log('Adding stone') // Debug log
               onCollectResource('stone', 1)
             }
           } else if (selectedTool === 'build' && selectedBlockType) {
@@ -138,18 +142,12 @@ export function Player({
               Math.round(point.z / BLOCK_SIZE) * BLOCK_SIZE
             )
 
-            // Check if we can afford the block
             const cost = BLOCK_COSTS[selectedBlockType]
-            if (cost) {
-              const canAfford = (selectedBlockType === 'wood-block' && resources.wood >= 1) ||
-                              (selectedBlockType === 'stone-block' && resources.stone >= 1)
-              
-              if (canAfford && spendResources(cost)) {
-                setPlacedBlocks(prev => [...prev, {
-                  position: blockPos.clone(),
-                  type: selectedBlockType as 'wood-block' | 'stone-block'
-                }])
-              }
+            if (cost && spendResources(cost)) {
+              setPlacedBlocks(prev => [...prev, {
+                position: blockPos.clone(),
+                type: selectedBlockType as 'wood-block' | 'stone-block'
+              }])
             }
           }
         }
@@ -158,7 +156,7 @@ export function Player({
 
     window.addEventListener('click', handleClick)
     return () => window.removeEventListener('click', handleClick)
-  }, [camera, pointer, isPaused, selectedTool, selectedBlockType, onCollectResource, spendResources, resources])
+  }, [camera, pointer, isPaused, selectedTool, selectedBlockType, onCollectResource, spendResources, resources, state.scene.children])
 
   useFrame((state, delta) => {
     if (!playerRef.current) return

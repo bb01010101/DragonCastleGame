@@ -13,6 +13,13 @@ export function EnvironmentObject({ position, type, onDestroy }: EnvironmentObje
   const [health, setHealth] = useState(type === 'rock' ? 100 : 50)
   const [isBeingHit, setIsBeingHit] = useState(false)
 
+  // Set userData when mesh is created
+  useEffect(() => {
+    if (meshRef.current) {
+      meshRef.current.userData.type = type
+    }
+  }, [type])
+
   const handleHit = () => {
     if (health <= 0) return
     
@@ -45,17 +52,17 @@ export function EnvironmentObject({ position, type, onDestroy }: EnvironmentObje
     <group position={position}>
       {type === 'tree' ? (
         <>
-          <mesh ref={meshRef} position={[0, 1, 0]}>
+          <mesh ref={meshRef} position={[0, 1, 0]} userData={{ type }}>
             <cylinderGeometry args={[0.2, 0.3, 2]} />
             <meshStandardMaterial color="#4b3621" />
           </mesh>
-          <mesh position={[0, 2.5, 0]}>
+          <mesh position={[0, 2.5, 0]} userData={{ type }}>
             <coneGeometry args={[1, 2]} />
             <meshStandardMaterial color="#228B22" />
           </mesh>
         </>
       ) : (
-        <mesh ref={meshRef}>
+        <mesh ref={meshRef} userData={{ type }}>
           <boxGeometry args={[1.5, 1.5, 1.5]} />
           <meshStandardMaterial color="#808080" />
         </mesh>

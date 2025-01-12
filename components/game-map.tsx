@@ -3,7 +3,6 @@
 import { useCallback, useState } from 'react'
 import { EnvironmentObject } from './environment-object'
 import { PlacedBlock } from './placed-block'
-import { useGameState } from '@/hooks/use-game-state'
 
 interface MapObject {
   type: 'tree' | 'rock' | 'wood-block' | 'stone-block'
@@ -12,7 +11,6 @@ interface MapObject {
 }
 
 export function GameMap() {
-  const { addResources } = useGameState()
   const [mapObjects, setMapObjects] = useState<MapObject[]>(() => {
     const objects: MapObject[] = []
     // Generate random trees and rocks
@@ -33,20 +31,6 @@ export function GameMap() {
       obj.position[0] !== position[0] || 
       obj.position[2] !== position[2]
     ))
-    
-    if (type === 'tree' || type === 'wood-block') {
-      addResources({ wood: 10 })
-    } else if (type === 'rock' || type === 'stone-block') {
-      addResources({ stone: 10 })
-    }
-  }, [addResources])
-
-  const handleBlockPlace = useCallback((type: 'wood-block' | 'stone-block', position: [number, number, number]) => {
-    setMapObjects(prev => [...prev, {
-      type,
-      position,
-      id: Date.now().toString()
-    }])
   }, [])
 
   return (
