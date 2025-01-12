@@ -106,15 +106,72 @@ export function Player({
     }
   }, [])
 
+  // Handle click events for mining and building
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (!playerRef.current || !isPaused || e.button !== 0) return
+
+      const localRaycaster = new Raycaster()
+      localRaycaster.setFromCamera(pointer, camera)
+      const intersects = localRaycaster.intersectObjects(camera.parent?.children || [], true)
+
+      if (intersects.length > 0) {
+        const intersection = intersects[0]
+        const distance = intersection.point.distanceTo(playerRef.current.position)
+        const currentRadius = selectedTool === 'build' ? BUILD_RADIUS : MINING_RADIUS
+
+        if (distance <= currentRadius) {
+          if (selectedTool === 'gather') {
+            const target = intersection.object
+            const resourceType = target.userData.type
+            
+            if (resourceType === 'tree') {
+              onCollectResource('wood', 1)
+            } else if (resourceType === 'rock') {
+              onCollectResource('stone', 1)
+            }
+          } else if (selectedTool === 'build' && selectedBlockType) {
+            const point = intersection.point
+            const blockPos = new Vector3(
+              Math.round(point.x / BLOCK_SIZE) * BLOCK_SIZE,
+              0,
+              Math.round(point.z / BLOCK_SIZE) * BLOCK_SIZE
+            )
+
+            // Check if we can afford the block
+            const cost = BLOCK_COSTS[selectedBlockType]
+            if (cost) {
+              const canAfford = (selectedBlockType === 'wood-block' && resources.wood >= 1) ||
+                              (selectedBlockType === 'stone-block' && resources.stone >= 1)
+              
+              if (canAfford && spendResources(cost)) {
+                setPlacedBlocks(prev => [...prev, {
+                  position: blockPos.clone(),
+                  type: selectedBlockType as 'wood-block' | 'stone-block'
+                }])
+              }
+            }
+          }
+        }
+      }
+    }
+
+    window.addEventListener('click', handleClick)
+    return () => window.removeEventListener('click', handleClick)
+  }, [camera, pointer, isPaused, selectedTool, selectedBlockType, onCollectResource, spendResources, resources])
+
   useFrame((state, delta) => {
     if (!playerRef.current) return
 
-    // Update target position based on mouse position
     raycaster.setFromCamera(pointer, camera)
     const intersects = raycaster.intersectObjects(state.scene.children, true)
     
-    // Handle movement only if not paused
     if (!isPaused) {
+      // Update target position based on mouse position
+      raycaster.setFromCamera(pointer, camera)
+      const intersects = raycaster.intersectObjects(state.scene.children, true)
+      
+      // Handle movement only if not paused
       if (intersects.length > 0) {
         const point = intersects[0].point
         targetPosition.current.set(point.x, 0, point.z)
@@ -151,25 +208,11 @@ export function Player({
             Math.round(point.z / BLOCK_SIZE) * BLOCK_SIZE
           )
           setPreviewPosition(blockPos)
-
-          // Handle block placement
-          if (isInRange && intersection.object.userData.type !== 'block') {
-            const handleClick = (e: MouseEvent) => {
-              if (e.button === 0) { // Left click
-                const cost = BLOCK_COSTS[selectedBlockType]
-                if (cost && spendResources(cost)) {
-                  setPlacedBlocks(prev => [...prev, {
-                    position: blockPos.clone(),
-                    type: selectedBlockType as 'wood-block' | 'stone-block'
-                  }])
-                }
-              }
-            }
-            window.addEventListener('click', handleClick, { once: true })
-          }
+        } else {
+          setPreviewPosition(null)
         }
 
-        // Handle mining
+        // Handle mining animation and UI
         if (selectedTool === 'gather' && isInRange) {
           const target = intersection.object
           const resourceType = target.userData.type
@@ -178,16 +221,10 @@ export function Player({
             if (!isMining || !currentMiningTarget || currentMiningTarget.object !== target) {
               setIsMining(true)
               setCurrentMiningTarget({ object: target, type: resourceType })
-              lastMiningTime.current = Date.now()
-            } else {
-              const now = Date.now()
-              const timeDiff = now - lastMiningTime.current
-              if (timeDiff >= 1000 / MINING_SPEED) {
-                const resourceName = resourceType === 'tree' ? 'wood' : 'stone'
-                onCollectResource(resourceName, 1)
-                lastMiningTime.current = now
-              }
             }
+          } else {
+            setIsMining(false)
+            setCurrentMiningTarget(null)
           }
         }
       }
