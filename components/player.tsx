@@ -1,9 +1,8 @@
 'use client'
 
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { Vector3, Raycaster } from 'three'
-import { useGLTF } from '@react-three/drei'
+import { Vector3, Raycaster, Mesh } from 'three'
 import { BLOCK_SIZE } from '../constants'
 import { checkCollision } from '../utils/collision'
 
@@ -21,8 +20,7 @@ export function Player({
   selectedBlockType: string | null
   setSelectedBlockType: (type: string | null) => void
 }) {
-  const { scene } = useGLTF('/models/character.glb')
-  const playerRef = useRef<THREE.Group>(null)
+  const playerRef = useRef<Mesh>(null)
   const targetPosition = useRef(new Vector3(0, 0, 0))
   const { camera, raycaster, pointer } = useThree()
 
@@ -103,10 +101,9 @@ export function Player({
   }, [camera, pointer, selectedTool, selectedBlockType, onCollectResource])
 
   return (
-    <primitive 
-      ref={playerRef}
-      object={scene.clone()} 
-      scale={[0.5, 0.5, 0.5]}
-    />
+    <mesh ref={playerRef}>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial color="#FF0000" />
+    </mesh>
   )
 }
