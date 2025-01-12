@@ -1,7 +1,7 @@
 'use client'
 
 import { Canvas } from '@react-three/fiber'
-import { OrthographicCamera, Stats } from '@react-three/drei'
+import { OrthographicCamera } from '@react-three/drei'
 import { useState, useCallback, Suspense, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -75,7 +75,7 @@ export default function GameCanvas() {
   }, [selectedTool, lastBlockType])
 
   return (
-    <div className="w-full h-screen relative">
+    <div className="w-full h-screen relative select-none">
       <CanvasWrapper
         style={{ background: '#4CAF50' }}
         camera={{
@@ -119,7 +119,6 @@ export default function GameCanvas() {
             spendResources={spendResources}
           />
         </Suspense>
-        <Stats />
       </CanvasWrapper>
       
       {/* UI Overlay */}

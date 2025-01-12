@@ -144,11 +144,6 @@ export function Player({
     const intersects = raycaster.intersectObjects(state.scene.children, true)
     
     if (!isPaused) {
-      // Update target position based on mouse position
-      raycaster.setFromCamera(pointer, camera)
-      const intersects = raycaster.intersectObjects(state.scene.children, true)
-      
-      // Handle movement only if not paused
       if (intersects.length > 0) {
         const point = intersects[0].point
         targetPosition.current.set(point.x, 0, point.z)
@@ -161,7 +156,8 @@ export function Player({
         const newPosition = playerRef.current.position.clone()
         newPosition.add(direction.multiplyScalar(MOVEMENT_SPEED))
         
-        if (!checkCollision(newPosition)) {
+        // Check collisions with blocks and boundary
+        if (!checkCollision(newPosition, [...placedBlocks])) {
           playerRef.current.position.copy(newPosition)
         }
 
