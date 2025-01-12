@@ -9,12 +9,20 @@ interface EnvironmentObjectProps {
   onCollectResource: (type: string, amount: number) => void
 }
 
+const TREE_COLORS = [
+  '#1B4D3E', // Dark forest green
+  '#2D5A27', // Pine green
+  '#1D6F42', // Forest green
+  '#2E8B57', // Sea green
+]
+
 export function EnvironmentObject({ position, type, onDestroy, onCollectResource }: EnvironmentObjectProps) {
   const groupRef = useRef<Group>(null)
   const meshRef = useRef<Mesh>(null)
   const [health, setHealth] = useState(type === 'rock' || type === 'stone-block' ? 100 : 50)
   const [isBeingHit, setIsBeingHit] = useState(false)
   const [hitDirection, setHitDirection] = useState(1)
+  const [treeColor] = useState(() => TREE_COLORS[Math.floor(Math.random() * TREE_COLORS.length)])
 
   // Set userData when mesh is created
   useEffect(() => {
@@ -57,30 +65,48 @@ export function EnvironmentObject({ position, type, onDestroy, onCollectResource
     <group ref={groupRef} position={position}>
       {type === 'tree' ? (
         <>
-          <mesh position={[0, 1, 0]} userData={{ type }}>
-            <cylinderGeometry args={[0.2, 0.3, 2]} />
-            <meshStandardMaterial color="#4b3621" />
+          {/* Tree trunk */}
+          <mesh position={[0, 0.75, 0]} userData={{ type }}>
+            <cylinderGeometry args={[0.2, 0.3, 1.5]} />
+            <meshStandardMaterial color="#8B4513" />
+          </mesh>
+          {/* Tree foliage layers */}
+          <mesh position={[0, 1.75, 0]} userData={{ type }}>
+            <coneGeometry args={[1.2, 1.5]} />
+            <meshStandardMaterial color={treeColor} />
           </mesh>
           <mesh position={[0, 2.5, 0]} userData={{ type }}>
-            <coneGeometry args={[1, 2]} />
-            <meshStandardMaterial color="#228B22" />
+            <coneGeometry args={[0.9, 1.2]} />
+            <meshStandardMaterial color={treeColor} />
+          </mesh>
+          <mesh position={[0, 3.1, 0]} userData={{ type }}>
+            <coneGeometry args={[0.6, 1]} />
+            <meshStandardMaterial color={treeColor} />
           </mesh>
         </>
       ) : type === 'rock' ? (
         <mesh ref={meshRef} userData={{ type }}>
-          <boxGeometry args={[1.5, 1.5, 1.5]} />
-          <meshStandardMaterial color="#808080" />
+          <octahedronGeometry args={[0.8]} />
+          <meshStandardMaterial 
+            color="#808080"
+            roughness={0.8}
+            metalness={0.2}
+          />
         </mesh>
       ) : (
         // Wood or stone block
         <mesh ref={meshRef} userData={{ type }}>
           <boxGeometry args={[1, 1, 1]} />
-          <meshStandardMaterial color={type === 'wood-block' ? '#8B4513' : '#808080'} />
+          <meshStandardMaterial 
+            color={type === 'wood-block' ? '#8B4513' : '#808080'}
+            roughness={type === 'wood-block' ? 1 : 0.8}
+            metalness={type === 'wood-block' ? 0 : 0.2}
+          />
         </mesh>
       )}
       {/* Invisible hit box */}
       <mesh
-        scale={type === 'tree' ? [2, 4, 2] : [1.5, 1.5, 1.5]}
+        scale={type === 'tree' ? [2.4, 4, 2.4] : [1.5, 1.5, 1.5]}
         position={type === 'tree' ? [0, 2, 0] : [0, 0, 0]}
         onClick={handleHit}
       >

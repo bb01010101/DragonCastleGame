@@ -77,7 +77,7 @@ export default function GameCanvas() {
   return (
     <div className="w-full h-screen relative select-none">
       <CanvasWrapper
-        style={{ background: '#4CAF50' }}
+        style={{ background: '#2D5A27' }}
         camera={{
           position: [0, 20, 20],
           near: 0.1,
@@ -100,7 +100,7 @@ export default function GameCanvas() {
           position={[0, 20, 20]}
           zoom={40}
         />
-        <color attach="background" args={['#4CAF50']} />
+        <color attach="background" args={['#2D5A27']} />
         <ambientLight intensity={1.0} />
         <directionalLight 
           position={[10, 20, 10]} 
@@ -121,33 +121,39 @@ export default function GameCanvas() {
         </Suspense>
       </CanvasWrapper>
       
-      {/* UI Overlay */}
-      <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
-        <Card className="p-4 pointer-events-auto bg-black/50 text-white">
-          <ResourcePanel resources={resources} />
-        </Card>
-
-        <Card className="p-4 pointer-events-auto bg-black/50">
-          <div className="flex gap-2">
-            <Select value={selectedTool} onValueChange={(value: 'build' | 'gather') => {
-              setSelectedTool(value)
-              if (value !== 'build') setSelectedBlockType(null)
-            }}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Select tool" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="gather">Destroy (Q)</SelectItem>
-                <SelectItem value="build">Build (Q)</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="secondary">Menu</Button>
-          </div>
-        </Card>
+      {/* Resource Counter */}
+      <div className="absolute top-8 left-8 flex items-center gap-4 text-2xl font-bold">
+        <div className="flex items-center gap-2 bg-black/30 px-4 py-2 rounded-lg">
+          <span className="text-green-300">🌲</span>
+          <span className="text-white">{resources.wood || 0}</span>
+        </div>
+        <div className="flex items-center gap-2 bg-black/30 px-4 py-2 rounded-lg">
+          <span className="text-gray-300">🪨</span>
+          <span className="text-white">{resources.stone || 0}</span>
+        </div>
       </div>
 
+      {/* Tool Selection */}
+      <div className="absolute top-8 right-8">
+        <div className="bg-black/30 p-2 rounded-lg">
+          <Select value={selectedTool} onValueChange={(value: 'build' | 'gather') => {
+            setSelectedTool(value)
+            if (value !== 'build') setSelectedBlockType(null)
+          }}>
+            <SelectTrigger className="w-[180px] bg-transparent border-none text-white">
+              <SelectValue placeholder="Select tool" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="gather">Destroy (Q)</SelectItem>
+              <SelectItem value="build">Build (Q)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Build Menu */}
       {selectedTool === 'build' && (
-        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2">
+        <div className="absolute bottom-32 left-1/2 transform -translate-x-1/2">
           <BuildMenu 
             resources={resources} 
             onBlockSelect={handleBlockSelect}
@@ -156,12 +162,14 @@ export default function GameCanvas() {
         </div>
       )}
 
-      <div className="absolute bottom-4 right-4 w-48 h-48 bg-black/20 rounded">
+      {/* Mini Map */}
+      <div className="absolute bottom-8 right-8 w-48 h-48 bg-black/30 rounded-lg overflow-hidden">
         <MiniMap />
       </div>
 
-      {/* Movement Controls Help */}
-      <div className="absolute bottom-4 left-4 text-sm text-white bg-black/50 p-2 rounded">
+      {/* Controls Help */}
+      <div className="absolute bottom-8 left-8 text-sm text-white bg-black/30 p-3 rounded-lg">
+        <div className="font-bold mb-1">Controls:</div>
         Move cursor to guide character
         <br />
         Space + {selectedTool === 'gather' ? 'aim at resources to gather' : 'aim to place blocks'}
