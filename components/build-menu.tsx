@@ -17,16 +17,16 @@ export function BuildMenu({ resources, onBlockSelect, selectedBlockType }: Build
         variant="outline"
         size="lg"
         className={cn(
-          "flex flex-col items-center gap-2 p-4 h-auto bg-black/50 hover:bg-black/70 border-2",
+          "flex flex-col items-center gap-2 p-4 h-auto bg-white/90 hover:bg-white border-2",
           selectedBlockType === 'wood-block' ? "border-yellow-500" : "border-transparent"
         )}
         onClick={() => onBlockSelect('wood-block')}
         disabled={!resources.wood || resources.wood < 1}
       >
-        <TreePine className="w-8 h-8" />
-        <div className="text-sm">
+        <TreePine className="w-8 h-8 text-green-800" />
+        <div className="text-sm font-bold text-gray-800">
           Wood Block
-          <div className="text-xs opacity-70">Cost: 1 wood</div>
+          <div className="text-xs font-normal">Cost: 1 wood</div>
         </div>
       </Button>
 
@@ -34,16 +34,16 @@ export function BuildMenu({ resources, onBlockSelect, selectedBlockType }: Build
         variant="outline"
         size="lg"
         className={cn(
-          "flex flex-col items-center gap-2 p-4 h-auto bg-black/50 hover:bg-black/70 border-2",
+          "flex flex-col items-center gap-2 p-4 h-auto bg-white/90 hover:bg-white border-2",
           selectedBlockType === 'stone-block' ? "border-yellow-500" : "border-transparent"
         )}
         onClick={() => onBlockSelect('stone-block')}
         disabled={!resources.stone || resources.stone < 1}
       >
-        <Mountain className="w-8 h-8" />
-        <div className="text-sm">
+        <Mountain className="w-8 h-8 text-gray-700" />
+        <div className="text-sm font-bold text-gray-800">
           Stone Block
-          <div className="text-xs opacity-70">Cost: 1 stone</div>
+          <div className="text-xs font-normal">Cost: 1 stone</div>
         </div>
       </Button>
     </div>

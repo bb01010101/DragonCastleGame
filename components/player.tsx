@@ -51,6 +51,10 @@ export function Player({
   const lastMiningTime = useRef(Date.now())
   const [previewPosition, setPreviewPosition] = useState<Vector3 | null>(null)
   const [isInRange, setIsInRange] = useState(false)
+  const [placedBlocks, setPlacedBlocks] = useState<Array<{
+    position: Vector3,
+    type: 'wood-block' | 'stone-block'
+  }>>([])
 
   const ghostMaterial = useMemo(() => {
     const material = new MeshStandardMaterial({
@@ -147,11 +151,25 @@ export function Player({
             Math.round(point.z / BLOCK_SIZE) * BLOCK_SIZE
           )
           setPreviewPosition(blockPos)
-        } else {
-          setPreviewPosition(null)
+
+          // Handle block placement
+          if (isInRange && intersection.object.userData.type !== 'block') {
+            const handleClick = (e: MouseEvent) => {
+              if (e.button === 0) { // Left click
+                const cost = BLOCK_COSTS[selectedBlockType]
+                if (cost && spendResources(cost)) {
+                  setPlacedBlocks(prev => [...prev, {
+                    position: blockPos.clone(),
+                    type: selectedBlockType as 'wood-block' | 'stone-block'
+                  }])
+                }
+              }
+            }
+            window.addEventListener('click', handleClick, { once: true })
+          }
         }
 
-        // Handle mining while paused
+        // Handle mining
         if (selectedTool === 'gather' && isInRange) {
           const target = intersection.object
           const resourceType = target.userData.type
@@ -165,7 +183,8 @@ export function Player({
               const now = Date.now()
               const timeDiff = now - lastMiningTime.current
               if (timeDiff >= 1000 / MINING_SPEED) {
-                onCollectResource(resourceType === 'tree' ? 'wood' : 'stone', 1)
+                const resourceName = resourceType === 'tree' ? 'wood' : 'stone'
+                onCollectResource(resourceName, 1)
                 lastMiningTime.current = now
               }
             }
@@ -213,12 +232,12 @@ export function Player({
       {selectedTool === 'build' ? (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.4, 0]}>
           <ringGeometry args={[0, BUILD_RADIUS, 64]} />
-          <meshBasicMaterial color="#4A90E2" opacity={0.3} transparent />
+          <meshBasicMaterial color="#4A90E2" opacity={0.5} transparent />
         </mesh>
       ) : (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.4, 0]}>
           <ringGeometry args={[0, MINING_RADIUS, 64]} />
-          <meshBasicMaterial color="#F5A623" opacity={0.3} transparent />
+          <meshBasicMaterial color="#F5A623" opacity={0.5} transparent />
         </mesh>
       )}
       
@@ -228,8 +247,16 @@ export function Player({
         <meshBasicMaterial color="#FF0000" opacity={0.5} transparent />
       </mesh>
 
+      {/* Placed blocks */}
+      {placedBlocks.map((block, index) => (
+        <mesh key={index} position={block.position}>
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial color={BLOCK_COLORS[block.type]} />
+        </mesh>
+      ))}
+
       {/* Block preview */}
-      {previewPosition && selectedBlockType && (
+      {previewPosition && selectedBlockType && isInRange && (
         <mesh position={previewPosition}>
           <boxGeometry args={[1, 1, 1]} />
           <primitive object={ghostMaterial} attach="material" />
@@ -250,15 +277,6 @@ export function Player({
         <Html center position={[0, -2, 0]}>
           <div className="bg-black/50 text-white px-4 py-2 rounded whitespace-nowrap">
             Mining {currentMiningTarget.type}...
-          </div>
-        </Html>
-      )}
-
-      {/* Out of Range Warning */}
-      {isPaused && !isInRange && (
-        <Html center position={[0, -1, 0]}>
-          <div className="bg-yellow-500/80 text-white px-4 py-2 rounded whitespace-nowrap">
-            Too far away!
           </div>
         </Html>
       )}

@@ -28,6 +28,7 @@ const CanvasWrapper = dynamic(() => Promise.resolve(Canvas), {
 export default function GameCanvas() {
   const [selectedTool, setSelectedTool] = useState<'build' | 'gather'>('gather')
   const [selectedBlockType, setSelectedBlockType] = useState<'wood-block' | 'stone-block' | null>(null)
+  const [lastBlockType, setLastBlockType] = useState<'wood-block' | 'stone-block'>('wood-block')
   const { resources, addResources, spendResources } = useGameState()
   
   const handleCollectResource = useCallback((type: string, amount: number) => {
@@ -36,6 +37,7 @@ export default function GameCanvas() {
 
   const handleBlockSelect = useCallback((type: 'wood-block' | 'stone-block') => {
     setSelectedBlockType(type)
+    setLastBlockType(type)
   }, [])
 
   // Handle keyboard shortcuts
@@ -45,18 +47,24 @@ export default function GameCanvas() {
         case 'KeyQ':
           setSelectedTool(prev => {
             const newTool = prev === 'gather' ? 'build' : 'gather'
-            if (newTool !== 'build') setSelectedBlockType(null)
+            if (newTool === 'build') {
+              setSelectedBlockType(lastBlockType)
+            } else {
+              setSelectedBlockType(null)
+            }
             return newTool
           })
           break
         case 'Digit1':
           if (selectedTool === 'build') {
             setSelectedBlockType('wood-block')
+            setLastBlockType('wood-block')
           }
           break
         case 'Digit2':
           if (selectedTool === 'build') {
             setSelectedBlockType('stone-block')
+            setLastBlockType('stone-block')
           }
           break
       }
@@ -64,7 +72,7 @@ export default function GameCanvas() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedTool])
+  }, [selectedTool, lastBlockType])
 
   return (
     <div className="w-full h-screen relative">
