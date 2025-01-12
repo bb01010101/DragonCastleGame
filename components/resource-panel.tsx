@@ -1,34 +1,17 @@
 'use client'
 
-import { TreesIcon as Tree, Gem, Wheat, Coins } from 'lucide-react'
+import { TreePine, Mountain } from 'lucide-react'
 
-interface ResourcePanelProps {
-  resources: {
-    wood: number
-    stone: number
-    food: number
-    gold: number
-  }
-}
-
-export function ResourcePanel({ resources }: ResourcePanelProps) {
+export function ResourcePanel({ resources }: { resources: Record<string, number> }) {
   return (
-    <div className="flex gap-4">
+    <div className="flex gap-6">
       <div className="flex items-center gap-2">
-        <Tree className="w-4 h-4" />
-        <span>{resources.wood}</span>
+        <TreePine className="w-6 h-6" />
+        <span className="text-lg font-bold">{resources.wood || 0}</span>
       </div>
       <div className="flex items-center gap-2">
-        <Gem className="w-4 h-4" />
-        <span>{resources.stone}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <Wheat className="w-4 h-4" />
-        <span>{resources.food}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <Coins className="w-4 h-4" />
-        <span>{resources.gold}</span>
+        <Mountain className="w-6 h-6" />
+        <span className="text-lg font-bold">{resources.stone || 0}</span>
       </div>
     </div>
   )

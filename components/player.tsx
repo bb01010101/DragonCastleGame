@@ -8,7 +8,8 @@ import { BLOCK_SIZE } from '../constants'
 import { checkCollision } from '../utils/collision'
 
 const MOVEMENT_SPEED = 0.1
-const INTERACTION_RADIUS = 3
+const MINING_RADIUS = 4
+const BUILD_RADIUS = 6
 const BOUNDARY_RADIUS = 50
 const DEATH_TIMER = 5000 // 5 seconds in milliseconds
 const SPAWN_POSITION = new Vector3(0, 0, 0)
@@ -135,7 +136,8 @@ export function Player({
       if (intersects.length > 0) {
         const intersection = intersects[0]
         const distance = intersection.point.distanceTo(playerRef.current.position)
-        setIsInRange(distance <= INTERACTION_RADIUS)
+        const currentRadius = selectedTool === 'build' ? BUILD_RADIUS : MINING_RADIUS
+        setIsInRange(distance <= currentRadius)
 
         if (selectedTool === 'build' && selectedBlockType) {
           const point = intersection.point
@@ -208,10 +210,17 @@ export function Player({
       </mesh>
       
       {/* Interaction radius visualization */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.4, 0]}>
-        <ringGeometry args={[0, INTERACTION_RADIUS, 32]} />
-        <meshBasicMaterial color="#808080" opacity={0.2} transparent />
-      </mesh>
+      {selectedTool === 'build' ? (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.4, 0]}>
+          <ringGeometry args={[0, BUILD_RADIUS, 64]} />
+          <meshBasicMaterial color="#4A90E2" opacity={0.3} transparent />
+        </mesh>
+      ) : (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.4, 0]}>
+          <ringGeometry args={[0, MINING_RADIUS, 64]} />
+          <meshBasicMaterial color="#F5A623" opacity={0.3} transparent />
+        </mesh>
+      )}
       
       {/* Boundary visualization */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.4, 0]}>

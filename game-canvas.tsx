@@ -140,10 +140,9 @@ export default function GameCanvas() {
       </div>
 
       {selectedTool === 'build' && (
-        <div className="absolute bottom-4 left-4 right-4">
+        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2">
           <BuildMenu 
             resources={resources} 
-            onBuild={spendResources}
             onBlockSelect={handleBlockSelect}
             selectedBlockType={selectedBlockType}
           />

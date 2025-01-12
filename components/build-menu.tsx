@@ -1,52 +1,51 @@
 'use client'
 
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Resources } from "@/hooks/use-game-state"
+import { TreePine, Mountain } from 'lucide-react'
+import { Button } from './ui/button'
+import { cn } from '@/lib/utils'
 
 interface BuildMenuProps {
-  resources: Resources
-  onBuild: (cost: Partial<Resources>) => void
+  resources: Record<string, number>
   onBlockSelect: (type: 'wood-block' | 'stone-block') => void
+  selectedBlockType: string | null
 }
 
-export function BuildMenu({ resources, onBuild, onBlockSelect }: BuildMenuProps) {
-  const handleBuildWoodBlock = () => {
-    if (resources.wood >= 20) {
-      onBuild({ wood: 20 })
-      onBlockSelect('wood-block')
-    }
-  }
-
-  const handleBuildStoneBlock = () => {
-    if (resources.stone >= 20) {
-      onBuild({ stone: 20 })
-      onBlockSelect('stone-block')
-    }
-  }
-
+export function BuildMenu({ resources, onBlockSelect, selectedBlockType }: BuildMenuProps) {
   return (
-    <Card className="p-4 bg-black/50">
-      <div className="flex gap-4">
-        <div>
-          <Button
-            onClick={handleBuildWoodBlock}
-            disabled={resources.wood < 20}
-            variant={resources.wood >= 20 ? "default" : "secondary"}
-          >
-            Build Wood Block (20 Wood)
-          </Button>
+    <div className="flex justify-center gap-4 pointer-events-auto">
+      <Button
+        variant="outline"
+        size="lg"
+        className={cn(
+          "flex flex-col items-center gap-2 p-4 h-auto bg-black/50 hover:bg-black/70 border-2",
+          selectedBlockType === 'wood-block' ? "border-yellow-500" : "border-transparent"
+        )}
+        onClick={() => onBlockSelect('wood-block')}
+        disabled={!resources.wood || resources.wood < 1}
+      >
+        <TreePine className="w-8 h-8" />
+        <div className="text-sm">
+          Wood Block
+          <div className="text-xs opacity-70">Cost: 1 wood</div>
         </div>
-        <div>
-          <Button
-            onClick={handleBuildStoneBlock}
-            disabled={resources.stone < 20}
-            variant={resources.stone >= 20 ? "default" : "secondary"}
-          >
-            Build Stone Block (20 Stone)
-          </Button>
+      </Button>
+
+      <Button
+        variant="outline"
+        size="lg"
+        className={cn(
+          "flex flex-col items-center gap-2 p-4 h-auto bg-black/50 hover:bg-black/70 border-2",
+          selectedBlockType === 'stone-block' ? "border-yellow-500" : "border-transparent"
+        )}
+        onClick={() => onBlockSelect('stone-block')}
+        disabled={!resources.stone || resources.stone < 1}
+      >
+        <Mountain className="w-8 h-8" />
+        <div className="text-sm">
+          Stone Block
+          <div className="text-xs opacity-70">Cost: 1 stone</div>
         </div>
-      </div>
-    </Card>
+      </Button>
+    </div>
   )
 }
