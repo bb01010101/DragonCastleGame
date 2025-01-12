@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState, useMemo } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Vector3, Raycaster, Mesh, MeshStandardMaterial } from 'three'
+import { Html } from '@react-three/drei'
 import { BLOCK_SIZE } from '../constants'
 import { checkCollision } from '../utils/collision'
 
@@ -228,23 +229,29 @@ export function Player({
 
       {/* Death Timer UI */}
       {deathTimerVisible && (
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-red-500/80 text-white px-4 py-2 rounded-lg text-xl font-bold">
-          Return to boundary! Dying in {timeLeft}s
-        </div>
+        <Html center position={[0, 2, 0]}>
+          <div className="bg-red-500/80 text-white px-4 py-2 rounded-lg text-xl font-bold whitespace-nowrap">
+            Return to boundary! Dying in {timeLeft}s
+          </div>
+        </Html>
       )}
 
       {/* Mining Progress UI */}
       {isMining && currentMiningTarget && (
-        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-4 py-2 rounded">
-          Mining {currentMiningTarget.type}...
-        </div>
+        <Html center position={[0, -2, 0]}>
+          <div className="bg-black/50 text-white px-4 py-2 rounded whitespace-nowrap">
+            Mining {currentMiningTarget.type}...
+          </div>
+        </Html>
       )}
 
       {/* Out of Range Warning */}
       {isPaused && !isInRange && (
-        <div className="absolute bottom-28 left-1/2 transform -translate-x-1/2 bg-yellow-500/80 text-white px-4 py-2 rounded">
-          Too far away!
-        </div>
+        <Html center position={[0, -1, 0]}>
+          <div className="bg-yellow-500/80 text-white px-4 py-2 rounded whitespace-nowrap">
+            Too far away!
+          </div>
+        </Html>
       )}
     </>
   )
