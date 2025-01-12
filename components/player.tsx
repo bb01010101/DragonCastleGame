@@ -150,7 +150,7 @@ export function Player({
   // Handle click events for building and destroying
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (!playerRef.current || !isPaused || e.button !== 0) return
+      if (!playerRef.current || e.button !== 0) return
 
       const localRaycaster = new Raycaster()
       localRaycaster.setFromCamera(pointer, camera)
@@ -160,8 +160,9 @@ export function Player({
         const intersection = intersects[0]
         const distance = intersection.point.distanceTo(playerRef.current.position)
 
+        // Only allow interactions within radius
         if (distance <= INTERACTION_RADIUS) {
-          if (selectedTool === 'build' && selectedBlockType) {
+          if (selectedTool === 'build' && selectedBlockType && isPaused) {
             const point = intersection.point
             const blockPos = new Vector3(
               Math.round(point.x / BLOCK_SIZE) * BLOCK_SIZE,
@@ -217,9 +218,11 @@ export function Player({
                 
                 return { ...prev, [blockId]: newHealth }
               })
-              // Alternate fists when destroying
-              punchFist(isLeftPunching)
-              setIsLeftPunching(!isLeftPunching)
+              // Animate fists if paused
+              if (isPaused) {
+                punchFist(isLeftPunching)
+                setIsLeftPunching(!isLeftPunching)
+              }
             }
           }
         }
@@ -335,73 +338,39 @@ export function Player({
   })
 
   return (
-    <>
-      <mesh ref={playerRef}>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color="#FF0000" />
-        
-        {/* Left Fist */}
-        <mesh
-          position={leftFist.position}
-          scale={leftFist.scale}
-        >
-          <sphereGeometry args={[0.2, 16, 16]} />
-          <meshStandardMaterial color="#FFA07A" />
-        </mesh>
+    <group ref={playerRef}>
+      {/* Player mesh */}
+      <mesh castShadow>
+        <boxGeometry args={[0.5, 1, 0.5]} />
+        <meshStandardMaterial color="red" />
+      </mesh>
 
-        {/* Right Fist */}
-        <mesh
-          position={rightFist.position}
-          scale={rightFist.scale}
-        >
-          <sphereGeometry args={[0.2, 16, 16]} />
-          <meshStandardMaterial color="#FFA07A" />
-        </mesh>
-      </mesh>
-      
       {/* Interaction radius visualization */}
-      {selectedTool === 'build' ? (
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.4, 0]}>
-          <ringGeometry args={[0, INTERACTION_RADIUS, 64]} />
-          <meshBasicMaterial color="#4A90E2" opacity={0.5} transparent />
-        </mesh>
-      ) : (
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.4, 0]}>
-          <ringGeometry args={[0, INTERACTION_RADIUS, 64]} />
-          <meshBasicMaterial color="#F5A623" opacity={0.5} transparent />
-        </mesh>
-      )}
-      
-      {/* Boundary visualization */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.4, 0]}>
-        <ringGeometry args={[BOUNDARY_RADIUS - 0.1, BOUNDARY_RADIUS, 64]} />
-        <meshBasicMaterial color="#FF0000" opacity={0.5} transparent />
+      <mesh rotation-x={-Math.PI / 2} position-y={0.01}>
+        <ringGeometry args={[0, selectedTool === 'build' ? INTERACTION_RADIUS : INTERACTION_RADIUS, 32]} />
+        <meshBasicMaterial 
+          color={selectedTool === 'build' ? '#4ade80' : '#f87171'} 
+          transparent 
+          opacity={0.2} 
+        />
       </mesh>
+
+      {/* Fists */}
+      <group position-y={0.5}>
+        <mesh ref={leftFistRef} position={[-0.4, 0, 0]}>
+          <boxGeometry args={[0.2, 0.2, 0.2]} />
+          <meshStandardMaterial color="#ffb385" />
+        </mesh>
+        <mesh ref={rightFistRef} position={[0.4, 0, 0]}>
+          <boxGeometry args={[0.2, 0.2, 0.2]} />
+          <meshStandardMaterial color="#ffb385" />
+        </mesh>
+      </group>
 
       {/* Placed blocks */}
-      {placedBlocks.map((block, index) => (
-        <mesh key={index} position={block.position}>
-          <boxGeometry args={[1, 1, 1]} />
-          <meshStandardMaterial color={BLOCK_COLORS[block.type]} />
-        </mesh>
+      {placedBlocks.map((block, i) => (
+        <Block key={i} position={block.position} type={block.type} />
       ))}
-
-      {/* Block preview */}
-      {previewPosition && selectedBlockType && isInRange && (
-        <mesh position={previewPosition}>
-          <boxGeometry args={[1, 1, 1]} />
-          <primitive object={ghostMaterial} attach="material" />
-        </mesh>
-      )}
-
-      {/* Death Timer UI */}
-      {deathTimerVisible && (
-        <Html center position={[0, 2, 0]}>
-          <div className="bg-red-500/80 text-white px-4 py-2 rounded-lg text-xl font-bold whitespace-nowrap">
-            Return to boundary! Dying in {timeLeft}s
-          </div>
-        </Html>
-      )}
-    </>
+    </group>
   )
 }
