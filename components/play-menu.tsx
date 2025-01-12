@@ -141,9 +141,10 @@ export function PlayMenu({ onPlay, onSandboxMode }: PlayMenuProps) {
       <div className="absolute top-4 right-4 bg-white rounded-lg p-4 shadow-lg">
         <h3 className="font-bold mb-2">How to Play</h3>
         <p className="text-sm text-gray-600">
-          Destroy the fortress in<br />
-          the middle of the map<br />
-          to get new cards!
+          Collect resources<br />
+          Build your fortess<br />
+          Amass your army<br />
+          Conquer your enemies!
         </p>
       </div>
 
