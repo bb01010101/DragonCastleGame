@@ -20,6 +20,8 @@ import { MiniMap } from './components/mini-map'
 import { Player } from './components/player'
 import { useGameState } from './hooks/use-game-state'
 import { PlayMenu } from './components/play-menu'
+import { useSocket } from './hooks/use-socket'
+import { OtherPlayer } from './components/other-player'
 
 // Disable SSR for Canvas
 const CanvasWrapper = dynamic(() => Promise.resolve(Canvas), {
@@ -27,20 +29,35 @@ const CanvasWrapper = dynamic(() => Promise.resolve(Canvas), {
 })
 
 export default function GameCanvas() {
+  const [gameState, setGameState] = useState<'menu' | 'playing'>('menu')
+  const [username, setUsername] = useState('')
   const [selectedTool, setSelectedTool] = useState<'build' | 'gather'>('gather')
   const [selectedBlockType, setSelectedBlockType] = useState<'wood-block' | 'stone-block' | null>(null)
   const [lastBlockType, setLastBlockType] = useState<'wood-block' | 'stone-block'>('wood-block')
   const { resources, addResources, spendResources } = useGameState()
-  const [gameState, setGameState] = useState<'menu' | 'playing'>('menu')
   
+  const {
+    players,
+    updatePosition,
+    updateTool,
+    collectResource,
+    placeBlock,
+    destroyBlock
+  } = useSocket(username)
+
   const handleCollectResource = useCallback((type: string, amount: number) => {
     addResources({ [type]: amount })
-  }, [addResources])
+    // Notify other players about resource collection
+    if (type === 'tree' || type === 'rock') {
+      collectResource(new Vector3(0, 0, 0), type) // Update with actual position
+    }
+  }, [addResources, collectResource])
 
   const handleBlockSelect = useCallback((type: 'wood-block' | 'stone-block') => {
     setSelectedBlockType(type)
     setLastBlockType(type)
-  }, [])
+    updateTool('build', type)
+  }, [updateTool])
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -51,8 +68,10 @@ export default function GameCanvas() {
             const newTool = prev === 'gather' ? 'build' : 'gather'
             if (newTool === 'build') {
               setSelectedBlockType(lastBlockType)
+              updateTool(newTool, lastBlockType)
             } else {
               setSelectedBlockType(null)
+              updateTool(newTool, null)
             }
             return newTool
           })
@@ -61,12 +80,14 @@ export default function GameCanvas() {
           if (selectedTool === 'build') {
             setSelectedBlockType('wood-block')
             setLastBlockType('wood-block')
+            updateTool('build', 'wood-block')
           }
           break
         case 'Digit2':
           if (selectedTool === 'build') {
             setSelectedBlockType('stone-block')
             setLastBlockType('stone-block')
+            updateTool('build', 'stone-block')
           }
           break
       }
@@ -74,7 +95,7 @@ export default function GameCanvas() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedTool, lastBlockType])
+  }, [selectedTool, lastBlockType, updateTool])
 
   const handlePlay = useCallback(() => {
     setGameState('playing')
@@ -87,7 +108,12 @@ export default function GameCanvas() {
   if (gameState === 'menu') {
     return (
       <div className="w-full h-screen relative select-none bg-[#2D5A27]">
-        <PlayMenu onPlay={handlePlay} onSandboxMode={handleSandboxMode} />
+        <PlayMenu 
+          onPlay={handlePlay} 
+          onSandboxMode={handleSandboxMode}
+          onUsernameChange={setUsername}
+          username={username}
+        />
       </div>
     )
   }
@@ -135,7 +161,20 @@ export default function GameCanvas() {
             setSelectedBlockType={setSelectedBlockType}
             resources={resources}
             spendResources={spendResources}
+            onMove={updatePosition}
+            onPlaceBlock={placeBlock}
+            onDestroyBlock={destroyBlock}
           />
+          {/* Render other players */}
+          {Array.from(players.values()).map(player => (
+            <OtherPlayer
+              key={player.id}
+              position={player.position}
+              rotation={player.rotation}
+              username={player.username}
+              tool={player.tool}
+            />
+          ))}
         </Suspense>
       </CanvasWrapper>
       

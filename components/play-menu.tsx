@@ -1,13 +1,16 @@
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import Image from 'next/image'
+import { Input } from "@/components/ui/input"
 
 interface PlayMenuProps {
   onPlay: () => void
   onSandboxMode?: () => void
+  onUsernameChange: (username: string) => void
+  username: string
 }
 
-export function PlayMenu({ onPlay, onSandboxMode }: PlayMenuProps) {
+export function PlayMenu({ onPlay, onSandboxMode, onUsernameChange, username }: PlayMenuProps) {
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-black/50">
       <div className="flex gap-4">
@@ -18,7 +21,15 @@ export function PlayMenu({ onPlay, onSandboxMode }: PlayMenuProps) {
               <div className="w-full h-full bg-blue-400" />
             </div>
             <div>
-              <div className="text-lg font-semibold">Player</div>
+              <div className="text-lg font-semibold">
+                <Input
+                  type="text"
+                  placeholder="Enter username"
+                  value={username}
+                  onChange={(e) => onUsernameChange(e.target.value)}
+                  className="w-full"
+                />
+              </div>
               <div className="flex items-center gap-2">
                 <span className="text-yellow-500">0/100</span>
                 <span className="text-red-500">💎 0</span>
@@ -74,6 +85,7 @@ export function PlayMenu({ onPlay, onSandboxMode }: PlayMenuProps) {
               variant="default"
               className="w-full bg-green-500 hover:bg-green-600 text-white"
               onClick={onPlay}
+              disabled={!username.trim()}
             >
               PLAY
             </Button>
@@ -82,6 +94,7 @@ export function PlayMenu({ onPlay, onSandboxMode }: PlayMenuProps) {
               variant="default"
               className="w-full bg-amber-500 hover:bg-amber-600 text-white"
               onClick={onSandboxMode}
+              disabled={!username.trim()}
             >
               Sandbox Mode
             </Button>
