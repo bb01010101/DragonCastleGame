@@ -1,6 +1,15 @@
-import { Server } from 'socket.io'
+import { Server as SocketIOServer } from 'socket.io'
 import type { NextApiRequest, NextApiResponse } from 'next'
+import type { Socket as NetSocket } from 'net'
 import { v4 as uuidv4 } from 'uuid'
+
+interface SocketServer extends NetSocket {
+  server: any;
+}
+
+interface NextApiResponseWithSocket extends NextApiResponse {
+  socket: SocketServer;
+}
 
 interface Player {
   id: string
@@ -48,9 +57,9 @@ for (let i = 0; i < 20; i++) {
   gameState.resources.set(id, { id, type, position })
 }
 
-const ioHandler = (req: NextApiRequest, res: NextApiResponse) => {
+const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
   if (!res.socket.server.io) {
-    const io = new Server(res.socket.server, {
+    const io = new SocketIOServer(res.socket.server, {
       path: '/api/socket',
       addTrailingSlash: false,
     })
