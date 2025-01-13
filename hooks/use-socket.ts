@@ -38,15 +38,23 @@ export function useSocket(username: string) {
   useEffect(() => {
     if (!username) return
 
-    // Connect to the WebSocket endpoint
-    const socketUrl = process.env.NEXT_PUBLIC_VERCEL_URL 
-      ? `wss://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+    // Get the current hostname
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const host = process.env.NEXT_PUBLIC_VERCEL_URL || window.location.host
+    const socketUrl = process.env.NODE_ENV === 'production'
+      ? `${protocol}//${host}`
       : 'http://localhost:3000'
+
+    console.log('Connecting to socket URL:', socketUrl)
 
     socketRef.current = io(socketUrl, {
       path: '/api/socket',
       addTrailingSlash: false,
-      transports: ['websocket']
+      transports: ['websocket'],
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
     })
 
     const socket = socketRef.current

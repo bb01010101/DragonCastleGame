@@ -59,9 +59,18 @@ for (let i = 0; i < 20; i++) {
 
 const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
   if (!res.socket.server.io) {
+    console.log('Initializing Socket.IO server...')
+    
     const io = new SocketIOServer(res.socket.server, {
       path: '/api/socket',
       addTrailingSlash: false,
+      cors: {
+        origin: '*',
+        methods: ['GET', 'POST']
+      },
+      transports: ['websocket'],
+      pingTimeout: 60000,
+      pingInterval: 25000
     })
 
     io.on('connection', (socket) => {
@@ -160,12 +169,13 @@ const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
 
     res.socket.server.io = io
   }
+
   res.end()
 }
 
 export const config = {
   api: {
-    bodyParser: false
+    bodyParser: false,
   }
 }
 
