@@ -1,53 +1,44 @@
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { io, Socket } from 'socket.io-client'
 
 interface Player {
   id: string
+  username: string
   position: { x: number; y: number; z: number }
   rotation: number
-  username: string
   tool: 'build' | 'gather'
-  blockType: 'wood-block' | 'stone-block' | null
 }
 
 interface Resource {
   id: string
-  type: string
+  type: 'tree' | 'rock'
   position: { x: number; y: number; z: number }
 }
 
 interface Block {
   id: string
-  type: string
+  type: 'wood-block' | 'stone-block'
   position: { x: number; y: number; z: number }
 }
 
-interface GameState {
-  players: Player[]
-  resources: Resource[]
-  blocks: Block[]
-}
-
 export function useSocket(username: string) {
+  const [socket, setSocket] = useState<Socket | null>(null)
+  const [connected, setConnected] = useState(false)
   const [players, setPlayers] = useState<Player[]>([])
   const [resources, setResources] = useState<Resource[]>([])
   const [blocks, setBlocks] = useState<Block[]>([])
-  const [connected, setConnected] = useState(false)
-  const socketRef = useRef<Socket>()
 
   useEffect(() => {
     if (!username) return
 
-    // Get the current hostname
+    // Get the current hostname and protocol
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = process.env.NEXT_PUBLIC_VERCEL_URL || window.location.host
-    const socketUrl = process.env.NODE_ENV === 'production'
-      ? `${protocol}//${host}`
-      : 'http://localhost:3000'
+    const host = window.location.host
+    const socketUrl = `${protocol}//${host}`
 
     console.log('Connecting to socket URL:', socketUrl)
 
-    socketRef.current = io(socketUrl, {
+    const newSocket = io(socketUrl, {
       path: '/api/socket',
       addTrailingSlash: false,
       transports: ['websocket'],
@@ -57,95 +48,94 @@ export function useSocket(username: string) {
       reconnectionDelay: 1000
     })
 
-    const socket = socketRef.current
-
-    socket.on('connect', () => {
-      console.log('Connected to server')
+    newSocket.on('connect', () => {
+      console.log('Socket connected')
       setConnected(true)
-      socket.emit('join', username)
+      newSocket.emit('join', username)
     })
 
-    socket.on('disconnect', () => {
-      console.log('Disconnected from server')
+    newSocket.on('disconnect', () => {
+      console.log('Socket disconnected')
       setConnected(false)
     })
 
-    socket.on('gameState', (state: GameState) => {
+    newSocket.on('gameState', (state: { players: Player[]; resources: Resource[]; blocks: Block[] }) => {
       console.log('Received game state:', state)
-      if (Array.isArray(state.players)) {
-        setPlayers(state.players)
-      }
-      if (Array.isArray(state.resources)) {
-        setResources(state.resources)
-      }
-      if (Array.isArray(state.blocks)) {
-        setBlocks(state.blocks)
-      }
+      if (Array.isArray(state.players)) setPlayers(state.players)
+      if (Array.isArray(state.resources)) setResources(state.resources)
+      if (Array.isArray(state.blocks)) setBlocks(state.blocks)
     })
 
-    socket.on('playerJoined', (player: Player) => {
+    newSocket.on('playerJoined', (player: Player) => {
       console.log('Player joined:', player)
       setPlayers(prev => [...prev, player])
     })
 
-    socket.on('playerLeft', (playerId: string) => {
+    newSocket.on('playerLeft', (playerId: string) => {
       console.log('Player left:', playerId)
       setPlayers(prev => prev.filter(p => p.id !== playerId))
     })
 
-    socket.on('playerMoved', (player: Player) => {
-      setPlayers(prev => prev.map(p => p.id === player.id ? player : p))
+    newSocket.on('playerMoved', ({ id, position, rotation }: { id: string; position: any; rotation: number }) => {
+      setPlayers(prev => prev.map(p => p.id === id ? { ...p, position, rotation } : p))
     })
 
-    socket.on('playerUpdatedTool', ({ playerId, tool, blockType }: { playerId: string; tool: 'build' | 'gather'; blockType: 'wood-block' | 'stone-block' | null }) => {
-      setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, tool, blockType } : p))
+    newSocket.on('playerUpdatedTool', ({ id, tool }: { id: string; tool: 'build' | 'gather' }) => {
+      setPlayers(prev => prev.map(p => p.id === id ? { ...p, tool } : p))
     })
 
-    socket.on('resourceCollected', (resourceId: string) => {
+    newSocket.on('resourceCollected', (resourceId: string) => {
       setResources(prev => prev.filter(r => r.id !== resourceId))
     })
 
-    socket.on('resourceSpawned', (resource: Resource) => {
+    newSocket.on('resourceSpawned', (resource: Resource) => {
       setResources(prev => [...prev, resource])
     })
 
-    socket.on('blockPlaced', (block: Block) => {
+    newSocket.on('blockPlaced', (block: Block) => {
       setBlocks(prev => [...prev, block])
     })
 
-    socket.on('blockDestroyed', (blockId: string) => {
+    newSocket.on('blockDestroyed', (blockId: string) => {
       setBlocks(prev => prev.filter(b => b.id !== blockId))
     })
 
+    setSocket(newSocket)
+
     return () => {
-      socket.disconnect()
+      newSocket.close()
     }
   }, [username])
 
   const updatePosition = useCallback((position: { x: number; y: number; z: number }, rotation: number) => {
-    if (!socketRef.current?.connected) return
-    socketRef.current.emit('move', { position, rotation })
-  }, [])
+    if (socket?.connected) {
+      socket.emit('move', position, rotation)
+    }
+  }, [socket])
 
-  const updateTool = useCallback((tool: 'build' | 'gather', blockType: 'wood-block' | 'stone-block' | null) => {
-    if (!socketRef.current?.connected) return
-    socketRef.current.emit('updateTool', { tool, blockType })
-  }, [])
+  const updateTool = useCallback((tool: 'build' | 'gather') => {
+    if (socket?.connected) {
+      socket.emit('updateTool', tool)
+    }
+  }, [socket])
 
   const collectResource = useCallback((resourceId: string) => {
-    if (!socketRef.current?.connected) return
-    socketRef.current.emit('collectResource', resourceId)
-  }, [])
+    if (socket?.connected) {
+      socket.emit('collectResource', resourceId)
+    }
+  }, [socket])
 
-  const placeBlock = useCallback((block: { type: string; position: { x: number; y: number; z: number } }) => {
-    if (!socketRef.current?.connected) return
-    socketRef.current.emit('placeBlock', block)
-  }, [])
+  const placeBlock = useCallback((block: Block) => {
+    if (socket?.connected) {
+      socket.emit('placeBlock', block)
+    }
+  }, [socket])
 
   const destroyBlock = useCallback((blockId: string) => {
-    if (!socketRef.current?.connected) return
-    socketRef.current.emit('destroyBlock', blockId)
-  }, [])
+    if (socket?.connected) {
+      socket.emit('destroyBlock', blockId)
+    }
+  }, [socket])
 
   return {
     connected,
