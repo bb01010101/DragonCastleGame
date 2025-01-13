@@ -1,6 +1,5 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
-import { Vector3 } from 'three'
 
 interface Player {
   id: string
@@ -11,126 +10,131 @@ interface Player {
   blockType: 'wood-block' | 'stone-block' | null
 }
 
+interface Resource {
+  id: string
+  type: string
+  position: { x: number; y: number; z: number }
+}
+
+interface Block {
+  id: string
+  type: string
+  position: { x: number; y: number; z: number }
+}
+
 interface GameState {
   players: Player[]
-  resources: Array<{ type: string; position: { x: number; y: number; z: number } }>
-  blocks: Array<{ type: string; position: { x: number; y: number; z: number } }>
+  resources: Resource[]
+  blocks: Block[]
 }
 
 export function useSocket(username: string) {
+  const [players, setPlayers] = useState<Player[]>([])
+  const [resources, setResources] = useState<Resource[]>([])
+  const [blocks, setBlocks] = useState<Block[]>([])
+  const [connected, setConnected] = useState(false)
   const socketRef = useRef<Socket>()
-  const playersRef = useRef<Map<string, Player>>(new Map())
-  const resourcesRef = useRef<Map<string, any>>(new Map())
-  const blocksRef = useRef<Map<string, any>>(new Map())
 
-  const connect = useCallback(() => {
-    socketRef.current = io('http://localhost:3001')
-    
-    socketRef.current.on('connect', () => {
+  useEffect(() => {
+    if (!username) return
+
+    // Connect to the WebSocket endpoint
+    const socketUrl = process.env.NEXT_PUBLIC_VERCEL_URL 
+      ? `wss://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+      : 'http://localhost:3000'
+
+    socketRef.current = io(socketUrl, {
+      path: '/api/socket',
+      addTrailingSlash: false,
+      transports: ['websocket']
+    })
+
+    const socket = socketRef.current
+
+    socket.on('connect', () => {
       console.log('Connected to server')
-      socketRef.current?.emit('join', username)
+      setConnected(true)
+      socket.emit('join', username)
     })
 
-    socketRef.current.on('gameState', (state: GameState) => {
-      state.players.forEach(player => {
-        if (player.id !== socketRef.current?.id) {
-          playersRef.current.set(player.id, player)
-        }
-      })
-      
-      state.resources.forEach(resource => {
-        const key = `${resource.position.x},${resource.position.y},${resource.position.z}`
-        resourcesRef.current.set(key, resource)
-      })
-      
-      state.blocks.forEach(block => {
-        const key = `${block.position.x},${block.position.y},${block.position.z}`
-        blocksRef.current.set(key, block)
-      })
+    socket.on('disconnect', () => {
+      console.log('Disconnected from server')
+      setConnected(false)
     })
 
-    socketRef.current.on('playerJoined', (player: Player) => {
-      playersRef.current.set(player.id, player)
+    socket.on('gameState', (state: GameState) => {
+      setPlayers(state.players.filter(p => p.id !== socket.id))
+      setResources(state.resources)
+      setBlocks(state.blocks)
     })
 
-    socketRef.current.on('playerLeft', (playerId: string) => {
-      playersRef.current.delete(playerId)
+    socket.on('playerJoined', (player: Player) => {
+      setPlayers(prev => [...prev, player])
     })
 
-    socketRef.current.on('playerMoved', (data: { id: string; position: { x: number; y: number; z: number }; rotation: number }) => {
-      const player = playersRef.current.get(data.id)
-      if (player) {
-        player.position = data.position
-        player.rotation = data.rotation
-      }
+    socket.on('playerLeft', (playerId: string) => {
+      setPlayers(prev => prev.filter(p => p.id !== playerId))
     })
 
-    socketRef.current.on('playerUpdatedTool', (data: { id: string; tool: 'build' | 'gather'; blockType: 'wood-block' | 'stone-block' | null }) => {
-      const player = playersRef.current.get(data.id)
-      if (player) {
-        player.tool = data.tool
-        player.blockType = data.blockType
-      }
+    socket.on('playerMoved', (player: Player) => {
+      setPlayers(prev => prev.map(p => p.id === player.id ? player : p))
     })
 
-    socketRef.current.on('resourceCollected', (data: { position: { x: number; y: number; z: number } }) => {
-      const key = `${data.position.x},${data.position.y},${data.position.z}`
-      resourcesRef.current.delete(key)
+    socket.on('playerUpdatedTool', ({ playerId, tool, blockType }: { playerId: string; tool: 'build' | 'gather'; blockType: 'wood-block' | 'stone-block' | null }) => {
+      setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, tool, blockType } : p))
     })
 
-    socketRef.current.on('blockPlaced', (data: { position: { x: number; y: number; z: number }; type: string }) => {
-      const key = `${data.position.x},${data.position.y},${data.position.z}`
-      blocksRef.current.set(key, data)
+    socket.on('resourceCollected', (resourceId: string) => {
+      setResources(prev => prev.filter(r => r.id !== resourceId))
     })
 
-    socketRef.current.on('blockDestroyed', (data: { position: { x: number; y: number; z: number } }) => {
-      const key = `${data.position.x},${data.position.y},${data.position.z}`
-      blocksRef.current.delete(key)
+    socket.on('resourceSpawned', (resource: Resource) => {
+      setResources(prev => [...prev, resource])
     })
+
+    socket.on('blockPlaced', (block: Block) => {
+      setBlocks(prev => [...prev, block])
+    })
+
+    socket.on('blockDestroyed', (blockId: string) => {
+      setBlocks(prev => prev.filter(b => b.id !== blockId))
+    })
+
+    return () => {
+      socket.disconnect()
+    }
   }, [username])
 
-  const updatePosition = useCallback((position: Vector3, rotation: number) => {
-    socketRef.current?.emit('updatePosition', {
-      position: { x: position.x, y: position.y, z: position.z },
-      rotation
-    })
+  const updatePosition = useCallback((position: { x: number; y: number; z: number }, rotation: number) => {
+    if (!socketRef.current?.connected) return
+    socketRef.current.emit('move', { position, rotation })
   }, [])
 
   const updateTool = useCallback((tool: 'build' | 'gather', blockType: 'wood-block' | 'stone-block' | null) => {
-    socketRef.current?.emit('updateTool', { tool, blockType })
+    if (!socketRef.current?.connected) return
+    socketRef.current.emit('updateTool', { tool, blockType })
   }, [])
 
-  const collectResource = useCallback((position: Vector3, type: string) => {
-    socketRef.current?.emit('collectResource', {
-      position: { x: position.x, y: position.y, z: position.z },
-      type
-    })
+  const collectResource = useCallback((resourceId: string) => {
+    if (!socketRef.current?.connected) return
+    socketRef.current.emit('collectResource', resourceId)
   }, [])
 
-  const placeBlock = useCallback((position: Vector3, type: string) => {
-    socketRef.current?.emit('placeBlock', {
-      position: { x: position.x, y: position.y, z: position.z },
-      type
-    })
+  const placeBlock = useCallback((block: { type: string; position: { x: number; y: number; z: number } }) => {
+    if (!socketRef.current?.connected) return
+    socketRef.current.emit('placeBlock', block)
   }, [])
 
-  const destroyBlock = useCallback((position: Vector3) => {
-    socketRef.current?.emit('destroyBlock', {
-      position: { x: position.x, y: position.y, z: position.z }
-    })
+  const destroyBlock = useCallback((blockId: string) => {
+    if (!socketRef.current?.connected) return
+    socketRef.current.emit('destroyBlock', blockId)
   }, [])
-
-  useEffect(() => {
-    connect()
-    return () => {
-      socketRef.current?.disconnect()
-    }
-  }, [connect])
 
   return {
-    players: playersRef.current,
-    resources: resourcesRef.current,
-    blocks: blocksRef.current,
+    connected,
+    players,
+    resources,
+    blocks,
     updatePosition,
     updateTool,
     collectResource,

@@ -1,66 +1,55 @@
 'use client'
 
-import { useCallback, useState } from 'react'
 import { EnvironmentObject } from './environment-object'
-import { PlacedBlock } from './placed-block'
 
-interface MapObject {
-  type: 'tree' | 'rock' | 'wood-block' | 'stone-block'
-  position: [number, number, number]
+interface Resource {
   id: string
+  type: string
+  position: { x: number; y: number; z: number }
+}
+
+interface Block {
+  id: string
+  type: string
+  position: { x: number; y: number; z: number }
 }
 
 interface GameMapProps {
-  onCollectResource: (type: string, amount: number) => void
+  resources: Resource[]
+  blocks: Block[]
+  onCollectResource: (id: string, type: string) => void
+  onDestroyBlock: (id: string) => void
 }
 
-export function GameMap({ onCollectResource }: GameMapProps) {
-  const [mapObjects, setMapObjects] = useState<MapObject[]>(() => {
-    const objects: MapObject[] = []
-    // Generate random trees and rocks
-    for (let i = 0; i < 50; i++) {
-      const x = Math.floor(Math.random() * 40) - 20
-      const z = Math.floor(Math.random() * 40) - 20
-      objects.push({
-        type: Math.random() > 0.5 ? 'tree' : 'rock',
-        position: [x, 0, z],
-        id: `${i}`
-      })
-    }
-    return objects
-  })
-
-  const handleObjectDestroy = useCallback((position: [number, number, number], type: string) => {
-    setMapObjects(prev => prev.filter(obj => 
-      obj.position[0] !== position[0] || 
-      obj.position[2] !== position[2]
-    ))
-  }, [])
-
+export function GameMap({ resources, blocks, onCollectResource, onDestroyBlock }: GameMapProps) {
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.1, 0]}>
+      {/* Ground */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[100, 100]} />
-        <meshStandardMaterial color="#3a5a40" />
+        <meshStandardMaterial color="#4CAF50" roughness={0.8} />
       </mesh>
-      
-      {mapObjects.map((object) => (
-        object.type === 'tree' || object.type === 'rock' ? (
-          <EnvironmentObject
-            key={object.id}
-            type={object.type}
-            position={object.position}
-            onDestroy={handleObjectDestroy}
-            onCollectResource={onCollectResource}
-          />
-        ) : (
-          <PlacedBlock
-            key={object.id}
-            type={object.type}
-            position={object.position}
-            onDestroy={handleObjectDestroy}
-          />
-        )
+
+      {/* Resources */}
+      {resources.map((resource) => (
+        <EnvironmentObject
+          key={resource.id}
+          id={resource.id}
+          type={resource.type}
+          position={resource.position}
+          onDestroy={onCollectResource}
+        />
+      ))}
+
+      {/* Blocks */}
+      {blocks.map((block) => (
+        <EnvironmentObject
+          key={block.id}
+          id={block.id}
+          type={block.type}
+          position={block.position}
+          onDestroy={onDestroyBlock}
+        />
       ))}
     </group>
   )
