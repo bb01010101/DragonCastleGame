@@ -2,33 +2,33 @@ import { Server as SocketIOServer } from 'socket.io'
 import type { NextApiRequest, NextApiResponse } from 'next'
 import type { Socket as NetSocket } from 'net'
 import { v4 as uuidv4 } from 'uuid'
+import { MAX_RESOURCES, RESOURCE_RESPAWN_TIME, SPAWN_POSITION, GRID_SIZE } from '../constants'
 
 interface SocketServer extends NetSocket {
-  server: any;
+  server: any
 }
 
 interface NextApiResponseWithSocket extends NextApiResponse {
-  socket: SocketServer;
+  socket: SocketServer
 }
 
 interface Player {
   id: string
+  username: string
   position: { x: number; y: number; z: number }
   rotation: number
-  username: string
   tool: 'build' | 'gather'
-  blockType: 'wood-block' | 'stone-block' | null
 }
 
 interface Resource {
   id: string
-  type: string
+  type: 'tree' | 'rock'
   position: { x: number; y: number; z: number }
 }
 
 interface Block {
   id: string
-  type: string
+  type: 'wood-block' | 'stone-block'
   position: { x: number; y: number; z: number }
 }
 
@@ -38,21 +38,20 @@ interface GameState {
   blocks: Map<string, Block>
 }
 
-// Initialize game state
 const gameState: GameState = {
   players: new Map(),
   resources: new Map(),
   blocks: new Map()
 }
 
-// Initialize some resources
-for (let i = 0; i < 20; i++) {
+// Initialize resources
+for (let i = 0; i < MAX_RESOURCES; i++) {
   const id = uuidv4()
-  const type = Math.random() > 0.5 ? 'wood' : 'stone'
+  const type = Math.random() < 0.5 ? 'tree' : 'rock'
   const position = {
-    x: Math.floor(Math.random() * 100) - 50,
+    x: Math.floor(Math.random() * GRID_SIZE) - GRID_SIZE / 2,
     y: 0,
-    z: Math.floor(Math.random() * 100) - 50
+    z: Math.floor(Math.random() * GRID_SIZE) - GRID_SIZE / 2
   }
   gameState.resources.set(id, { id, type, position })
 }
@@ -74,87 +73,78 @@ const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
     })
 
     io.on('connection', (socket) => {
-      console.log('Player connected:', socket.id)
+      console.log('Client connected:', socket.id)
 
-      // Handle player join
       socket.on('join', (username: string) => {
-        if (!username) return
-
         const player: Player = {
           id: socket.id,
-          position: { x: 0, y: 0, z: 0 },
-          rotation: 0,
           username,
-          tool: 'gather',
-          blockType: null
+          position: { ...SPAWN_POSITION },
+          rotation: 0,
+          tool: 'gather'
         }
         gameState.players.set(socket.id, player)
-        
-        // Convert Maps to Arrays before sending
+
+        // Send current game state to new player
         const state = {
           players: Array.from(gameState.players.values()).filter(p => p.id !== socket.id),
           resources: Array.from(gameState.resources.values()),
           blocks: Array.from(gameState.blocks.values())
         }
-        
-        // Send current game state to new player
         socket.emit('gameState', state)
-        
-        // Notify other players
+
+        // Notify others of new player
         socket.broadcast.emit('playerJoined', player)
       })
 
-      // Handle player movement
-      socket.on('move', ({ position, rotation }: { position: { x: number; y: number; z: number }; rotation: number }) => {
+      socket.on('move', (position: { x: number; y: number; z: number }, rotation: number) => {
         const player = gameState.players.get(socket.id)
         if (player) {
           player.position = position
           player.rotation = rotation
-          socket.broadcast.emit('playerMoved', player)
+          socket.broadcast.emit('playerMoved', { id: socket.id, position, rotation })
         }
       })
 
-      // Handle tool updates
-      socket.on('updateTool', ({ tool, blockType }: { tool: 'build' | 'gather'; blockType: 'wood-block' | 'stone-block' | null }) => {
+      socket.on('updateTool', (tool: 'build' | 'gather') => {
         const player = gameState.players.get(socket.id)
         if (player) {
           player.tool = tool
-          player.blockType = blockType
-          socket.broadcast.emit('playerUpdatedTool', { playerId: socket.id, tool, blockType })
+          socket.broadcast.emit('playerUpdatedTool', { id: socket.id, tool })
         }
       })
 
-      // Handle resource collection
       socket.on('collectResource', (resourceId: string) => {
-        if (gameState.resources.has(resourceId)) {
+        const resource = gameState.resources.get(resourceId)
+        if (resource) {
           gameState.resources.delete(resourceId)
           io.emit('resourceCollected', resourceId)
 
-          // Spawn a new resource after a delay
+          // Spawn new resource after delay
           setTimeout(() => {
-            const id = uuidv4()
-            const type = Math.random() > 0.5 ? 'wood' : 'stone'
-            const position = {
-              x: Math.floor(Math.random() * 100) - 50,
-              y: 0,
-              z: Math.floor(Math.random() * 100) - 50
+            const newId = uuidv4()
+            const newResource: Resource = {
+              id: newId,
+              type: Math.random() < 0.5 ? 'tree' : 'rock',
+              position: {
+                x: Math.floor(Math.random() * GRID_SIZE) - GRID_SIZE / 2,
+                y: 0,
+                z: Math.floor(Math.random() * GRID_SIZE) - GRID_SIZE / 2
+              }
             }
-            const newResource = { id, type, position }
-            gameState.resources.set(id, newResource)
+            gameState.resources.set(newId, newResource)
             io.emit('resourceSpawned', newResource)
-          }, 30000) // 30 seconds
+          }, RESOURCE_RESPAWN_TIME)
         }
       })
 
-      // Handle block placement
-      socket.on('placeBlock', (block: { type: string; position: { x: number; y: number; z: number } }) => {
+      socket.on('placeBlock', (block: Block) => {
         const id = uuidv4()
         const newBlock = { ...block, id }
         gameState.blocks.set(id, newBlock)
         io.emit('blockPlaced', newBlock)
       })
 
-      // Handle block destruction
       socket.on('destroyBlock', (blockId: string) => {
         if (gameState.blocks.has(blockId)) {
           gameState.blocks.delete(blockId)
@@ -162,9 +152,8 @@ const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
         }
       })
 
-      // Handle disconnection
       socket.on('disconnect', () => {
-        console.log('Player disconnected:', socket.id)
+        console.log('Client disconnected:', socket.id)
         gameState.players.delete(socket.id)
         io.emit('playerLeft', socket.id)
       })
