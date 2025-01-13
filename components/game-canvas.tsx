@@ -18,6 +18,7 @@ export function GameCanvas() {
   const { resources, addResources, spendResources } = useGameState()
   const { 
     connected,
+    error,
     players, 
     resources: gameResources,
     blocks: gameBlocks,
@@ -54,7 +55,7 @@ export function GameCanvas() {
   const handleBlockSelect = (blockType: 'wood-block' | 'stone-block' | null) => {
     setSelectedTool('build')
     setSelectedBlockType(blockType)
-    updateTool('build', blockType)
+    updateTool('build')
   }
 
   if (gameState === 'menu') {
@@ -68,11 +69,27 @@ export function GameCanvas() {
     )
   }
 
-  if (!connected) {
+  if (!connected || error) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-        <div className="bg-white p-4 rounded-lg shadow-lg">
-          <p className="text-lg">Connecting to server...</p>
+        <div className="bg-white p-6 rounded-lg shadow-lg text-center">
+          {error ? (
+            <>
+              <p className="text-red-500 text-lg font-semibold mb-2">Connection Error</p>
+              <p className="text-gray-600">{error}</p>
+              <button 
+                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                onClick={() => setGameState('menu')}
+              >
+                Back to Menu
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-lg mb-2">Connecting to server...</p>
+              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            </>
+          )}
         </div>
       </div>
     )

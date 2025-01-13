@@ -27,83 +27,104 @@ export function useSocket(username: string) {
   const [players, setPlayers] = useState<Player[]>([])
   const [resources, setResources] = useState<Resource[]>([])
   const [blocks, setBlocks] = useState<Block[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!username) return
 
-    // Get the current hostname and protocol
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const host = window.location.host
-    const socketUrl = `${protocol}//${host}`
+    let newSocket: Socket | null = null
+    
+    try {
+      console.log('Initializing socket connection...')
+      
+      newSocket = io('', {
+        path: '/api/socket',
+        addTrailingSlash: false,
+        transports: ['websocket'],
+        autoConnect: true,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        timeout: 10000
+      })
 
-    console.log('Connecting to socket URL:', socketUrl)
+      newSocket.on('connect', () => {
+        console.log('Socket connected successfully')
+        setError(null)
+        setConnected(true)
+        newSocket?.emit('join', username)
+      })
 
-    const newSocket = io(socketUrl, {
-      path: '/api/socket',
-      addTrailingSlash: false,
-      transports: ['websocket'],
-      autoConnect: true,
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000
-    })
+      newSocket.on('connect_error', (err) => {
+        console.error('Socket connection error:', err)
+        setError('Failed to connect to game server')
+        setConnected(false)
+      })
 
-    newSocket.on('connect', () => {
-      console.log('Socket connected')
-      setConnected(true)
-      newSocket.emit('join', username)
-    })
+      newSocket.on('disconnect', (reason) => {
+        console.log('Socket disconnected:', reason)
+        setConnected(false)
+        if (reason === 'io server disconnect') {
+          // Server initiated disconnect, try to reconnect
+          newSocket?.connect()
+        }
+      })
 
-    newSocket.on('disconnect', () => {
-      console.log('Socket disconnected')
+      newSocket.on('gameState', (state: { players: Player[]; resources: Resource[]; blocks: Block[] }) => {
+        console.log('Received initial game state:', state)
+        setPlayers(state.players || [])
+        setResources(state.resources || [])
+        setBlocks(state.blocks || [])
+      })
+
+      newSocket.on('playerJoined', (player: Player) => {
+        console.log('Player joined:', player)
+        setPlayers(prev => [...prev, player])
+      })
+
+      newSocket.on('playerLeft', (playerId: string) => {
+        console.log('Player left:', playerId)
+        setPlayers(prev => prev.filter(p => p.id !== playerId))
+      })
+
+      newSocket.on('playerMoved', ({ id, position, rotation }: { id: string; position: any; rotation: number }) => {
+        setPlayers(prev => prev.map(p => p.id === id ? { ...p, position, rotation } : p))
+      })
+
+      newSocket.on('playerUpdatedTool', ({ id, tool }: { id: string; tool: 'build' | 'gather' }) => {
+        setPlayers(prev => prev.map(p => p.id === id ? { ...p, tool } : p))
+      })
+
+      newSocket.on('resourceCollected', (resourceId: string) => {
+        setResources(prev => prev.filter(r => r.id !== resourceId))
+      })
+
+      newSocket.on('resourceSpawned', (resource: Resource) => {
+        setResources(prev => [...prev, resource])
+      })
+
+      newSocket.on('blockPlaced', (block: Block) => {
+        setBlocks(prev => [...prev, block])
+      })
+
+      newSocket.on('blockDestroyed', (blockId: string) => {
+        setBlocks(prev => prev.filter(b => b.id !== blockId))
+      })
+
+      setSocket(newSocket)
+
+      return () => {
+        console.log('Cleaning up socket connection...')
+        if (newSocket) {
+          newSocket.disconnect()
+          setSocket(null)
+          setConnected(false)
+        }
+      }
+    } catch (err) {
+      console.error('Error setting up socket:', err)
+      setError('Failed to initialize game connection')
       setConnected(false)
-    })
-
-    newSocket.on('gameState', (state: { players: Player[]; resources: Resource[]; blocks: Block[] }) => {
-      console.log('Received game state:', state)
-      if (Array.isArray(state.players)) setPlayers(state.players)
-      if (Array.isArray(state.resources)) setResources(state.resources)
-      if (Array.isArray(state.blocks)) setBlocks(state.blocks)
-    })
-
-    newSocket.on('playerJoined', (player: Player) => {
-      console.log('Player joined:', player)
-      setPlayers(prev => [...prev, player])
-    })
-
-    newSocket.on('playerLeft', (playerId: string) => {
-      console.log('Player left:', playerId)
-      setPlayers(prev => prev.filter(p => p.id !== playerId))
-    })
-
-    newSocket.on('playerMoved', ({ id, position, rotation }: { id: string; position: any; rotation: number }) => {
-      setPlayers(prev => prev.map(p => p.id === id ? { ...p, position, rotation } : p))
-    })
-
-    newSocket.on('playerUpdatedTool', ({ id, tool }: { id: string; tool: 'build' | 'gather' }) => {
-      setPlayers(prev => prev.map(p => p.id === id ? { ...p, tool } : p))
-    })
-
-    newSocket.on('resourceCollected', (resourceId: string) => {
-      setResources(prev => prev.filter(r => r.id !== resourceId))
-    })
-
-    newSocket.on('resourceSpawned', (resource: Resource) => {
-      setResources(prev => [...prev, resource])
-    })
-
-    newSocket.on('blockPlaced', (block: Block) => {
-      setBlocks(prev => [...prev, block])
-    })
-
-    newSocket.on('blockDestroyed', (blockId: string) => {
-      setBlocks(prev => prev.filter(b => b.id !== blockId))
-    })
-
-    setSocket(newSocket)
-
-    return () => {
-      newSocket.close()
     }
   }, [username])
 
@@ -139,6 +160,7 @@ export function useSocket(username: string) {
 
   return {
     connected,
+    error,
     players,
     resources,
     blocks,
