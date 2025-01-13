@@ -90,12 +90,15 @@ const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
         }
         gameState.players.set(socket.id, player)
         
-        // Send current game state to new player
-        socket.emit('gameState', {
-          players: Array.from(gameState.players.values()),
+        // Convert Maps to Arrays before sending
+        const state = {
+          players: Array.from(gameState.players.values()).filter(p => p.id !== socket.id),
           resources: Array.from(gameState.resources.values()),
           blocks: Array.from(gameState.blocks.values())
-        })
+        }
+        
+        // Send current game state to new player
+        socket.emit('gameState', state)
         
         // Notify other players
         socket.broadcast.emit('playerJoined', player)

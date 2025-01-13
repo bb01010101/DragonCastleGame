@@ -71,16 +71,25 @@ export function useSocket(username: string) {
     })
 
     socket.on('gameState', (state: GameState) => {
-      setPlayers(state.players.filter(p => p.id !== socket.id))
-      setResources(state.resources)
-      setBlocks(state.blocks)
+      console.log('Received game state:', state)
+      if (Array.isArray(state.players)) {
+        setPlayers(state.players)
+      }
+      if (Array.isArray(state.resources)) {
+        setResources(state.resources)
+      }
+      if (Array.isArray(state.blocks)) {
+        setBlocks(state.blocks)
+      }
     })
 
     socket.on('playerJoined', (player: Player) => {
+      console.log('Player joined:', player)
       setPlayers(prev => [...prev, player])
     })
 
     socket.on('playerLeft', (playerId: string) => {
+      console.log('Player left:', playerId)
       setPlayers(prev => prev.filter(p => p.id !== playerId))
     })
 
