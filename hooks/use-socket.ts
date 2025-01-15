@@ -37,7 +37,14 @@ export function useSocket(username: string) {
     try {
       console.log('Initializing socket connection...')
       
-      newSocket = io('', {
+      // Get the current URL
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const host = window.location.host
+      const socketUrl = `${window.location.protocol}//${host}`
+      
+      console.log('Connecting to socket URL:', socketUrl)
+
+      newSocket = io(socketUrl, {
         path: '/api/socket',
         addTrailingSlash: false,
         transports: ['websocket'],
@@ -45,7 +52,8 @@ export function useSocket(username: string) {
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
-        timeout: 10000
+        timeout: 20000, // Increased timeout
+        forceNew: true
       })
 
       newSocket.on('connect', () => {
@@ -57,7 +65,7 @@ export function useSocket(username: string) {
 
       newSocket.on('connect_error', (err) => {
         console.error('Socket connection error:', err)
-        setError('Failed to connect to game server')
+        setError('Failed to connect to game server. Please try again.')
         setConnected(false)
       })
 
@@ -72,9 +80,9 @@ export function useSocket(username: string) {
 
       newSocket.on('gameState', (state: { players: Player[]; resources: Resource[]; blocks: Block[] }) => {
         console.log('Received initial game state:', state)
-        setPlayers(state.players || [])
-        setResources(state.resources || [])
-        setBlocks(state.blocks || [])
+        if (Array.isArray(state.players)) setPlayers(state.players)
+        if (Array.isArray(state.resources)) setResources(state.resources)
+        if (Array.isArray(state.blocks)) setBlocks(state.blocks)
       })
 
       newSocket.on('playerJoined', (player: Player) => {
@@ -123,7 +131,7 @@ export function useSocket(username: string) {
       }
     } catch (err) {
       console.error('Error setting up socket:', err)
-      setError('Failed to initialize game connection')
+      setError('Failed to initialize game connection. Please refresh the page.')
       setConnected(false)
     }
   }, [username])

@@ -16,10 +16,32 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 const handler = async (req: NextApiRequest, res: NextApiResponseWithSocket) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end()
+    return
+  }
+
   if (!res.socket.server.io) {
     console.log('*First socket connection attempt, initializing socket server...')
     try {
+      const io = new SocketIOServer(res.socket.server, {
+        path: '/api/socket',
+        addTrailingSlash: false,
+        cors: {
+          origin: '*',
+          methods: ['GET', 'POST'],
+          credentials: true
+        },
+        transports: ['websocket'],
+        pingTimeout: 60000,
+        pingInterval: 25000
+      })
+
+      // Initialize game state and event handlers
       await ioHandler(req, res)
+      
+      res.socket.server.io = io
       console.log('Socket server initialized successfully')
     } catch (err) {
       console.error('Failed to initialize socket server:', err)
@@ -28,8 +50,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponseWithSocket) => {
     }
   } else {
     console.log('Socket server already running, reusing existing instance')
-    res.end()
   }
+
+  res.end()
 }
 
 export const config = {
